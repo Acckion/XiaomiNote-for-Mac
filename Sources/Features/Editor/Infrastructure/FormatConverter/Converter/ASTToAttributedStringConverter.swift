@@ -161,7 +161,7 @@ public final class ASTToAttributedStringConverter {
         let inlineString = convertInlineNodes(node.content, inheritedAttributes: [:])
         result.append(inlineString)
 
-        // 设置列表类型属性，以便 BlockFormatHandler.detect() 能正确检测列表格式
+        // 设置列表类型属性，以便 ParagraphManager.detectParagraphFormat() 能正确检测列表格式
         // 这对于列表换行继承功能至关重要
         let fullRange = NSRange(location: 0, length: result.length)
         result.addAttribute(.listType, value: ListType.bullet, range: fullRange)
@@ -206,7 +206,7 @@ public final class ASTToAttributedStringConverter {
         let inlineString = convertInlineNodes(node.content, inheritedAttributes: [:])
         result.append(inlineString)
 
-        // 设置列表类型属性，以便 BlockFormatHandler.detect() 能正确检测列表格式
+        // 设置列表类型属性，以便 ParagraphManager.detectParagraphFormat() 能正确检测列表格式
         // 这对于列表换行继承功能至关重要
         let fullRange = NSRange(location: 0, length: result.length)
         result.addAttribute(.listType, value: ListType.ordered, range: fullRange)
@@ -242,7 +242,7 @@ public final class ASTToAttributedStringConverter {
         let inlineString = convertInlineNodes(node.content, inheritedAttributes: [:])
         result.append(inlineString)
 
-        // 设置列表类型属性，以便 BlockFormatHandler.detect() 能正确检测列表格式
+        // 设置列表类型属性，以便 ParagraphManager.detectParagraphFormat() 能正确检测列表格式
         let fullRange = NSRange(location: 0, length: result.length)
         result.addAttribute(.listType, value: ListType.checkbox, range: fullRange)
         result.addAttribute(.listIndent, value: node.indent, range: fullRange)

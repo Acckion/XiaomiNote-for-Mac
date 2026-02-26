@@ -13,63 +13,36 @@ import AppKit
 public extension UnifiedFormatManager {
 
     /// 应用无序列表格式
-    /// - Parameters:
-    ///   - textStorage: 文本存储
-    ///   - range: 应用范围
-    ///   - indent: 缩进级别（默认为 1）
     func applyBulletList(to textStorage: NSTextStorage, range: NSRange, indent: Int = 1) {
-        ListFormatHandler.applyBulletList(to: textStorage, range: range, indent: indent)
+        ParagraphManager.applyBulletList(to: textStorage, range: range, indent: indent)
     }
 
     /// 应用有序列表格式
-    /// - Parameters:
-    ///   - textStorage: 文本存储
-    ///   - range: 应用范围
-    ///   - number: 列表编号
-    ///   - indent: 缩进级别（默认为 1）
     func applyOrderedList(to textStorage: NSTextStorage, range: NSRange, number: Int = 1, indent: Int = 1) {
-        ListFormatHandler.applyOrderedList(to: textStorage, range: range, number: number, indent: indent)
+        ParagraphManager.applyOrderedList(to: textStorage, range: range, number: number, indent: indent)
     }
 
     /// 移除列表格式
-    /// - Parameters:
-    ///   - textStorage: 文本存储
-    ///   - range: 应用范围
     func removeListFormat(from textStorage: NSTextStorage, range: NSRange) {
-        ListFormatHandler.removeListFormat(from: textStorage, range: range)
+        ParagraphManager.removeListFormat(from: textStorage, range: range)
     }
 
     /// 获取指定位置的列表类型
-    /// - Parameters:
-    ///   - textStorage: 文本存储
-    ///   - position: 位置
-    /// - Returns: 列表类型
     func getListType(in textStorage: NSTextStorage, at position: Int) -> ListType {
-        ListFormatHandler.detectListType(in: textStorage, at: position)
+        ParagraphManager.detectListType(at: position, in: textStorage)
     }
 
     /// 获取指定位置的列表缩进级别
-    /// - Parameters:
-    ///   - textStorage: 文本存储
-    ///   - position: 位置
-    /// - Returns: 缩进级别
     func getListIndent(in textStorage: NSTextStorage, at position: Int) -> Int {
-        ListFormatHandler.getListIndent(in: textStorage, at: position)
+        ParagraphManager.getListIndent(at: position, in: textStorage)
     }
 
     /// 获取指定位置的列表编号
-    /// - Parameters:
-    ///   - textStorage: 文本存储
-    ///   - position: 位置
-    /// - Returns: 列表编号
     func getListNumber(in textStorage: NSTextStorage, at position: Int) -> Int {
-        ListFormatHandler.getListNumber(in: textStorage, at: position)
+        ParagraphManager.getListNumber(at: position, in: textStorage)
     }
 
     /// 增加列表缩进
-    /// - Parameters:
-    ///   - textStorage: 文本存储
-    ///   - range: 应用范围
     func increaseListIndent(to textStorage: NSTextStorage, range: NSRange) {
         let currentIndent = getListIndent(in: textStorage, at: range.location)
         let listType = getListType(in: textStorage, at: range.location)
@@ -83,7 +56,7 @@ public extension UnifiedFormatManager {
         let lineRange = (textStorage.string as NSString).lineRange(for: range)
         textStorage.addAttribute(.listIndent, value: newIndent, range: lineRange)
 
-        let bulletWidth = listType == .ordered ? ListFormatHandler.orderNumberWidth : ListFormatHandler.bulletWidth
+        let bulletWidth = listType == .ordered ? ParagraphStyleFactory.orderNumberWidth : ParagraphStyleFactory.bulletWidth
         let paragraphStyle = ParagraphStyleFactory.makeList(indent: newIndent, bulletWidth: bulletWidth)
         textStorage.addAttribute(.paragraphStyle, value: paragraphStyle, range: lineRange)
 
@@ -91,9 +64,6 @@ public extension UnifiedFormatManager {
     }
 
     /// 减少列表缩进
-    /// - Parameters:
-    ///   - textStorage: 文本存储
-    ///   - range: 应用范围
     func decreaseListIndent(to textStorage: NSTextStorage, range: NSRange) {
         let currentIndent = getListIndent(in: textStorage, at: range.location)
         let listType = getListType(in: textStorage, at: range.location)
@@ -112,7 +82,7 @@ public extension UnifiedFormatManager {
         let lineRange = (textStorage.string as NSString).lineRange(for: range)
         textStorage.addAttribute(.listIndent, value: newIndent, range: lineRange)
 
-        let bulletWidth = listType == .ordered ? ListFormatHandler.orderNumberWidth : ListFormatHandler.bulletWidth
+        let bulletWidth = listType == .ordered ? ParagraphStyleFactory.orderNumberWidth : ParagraphStyleFactory.bulletWidth
         let paragraphStyle = ParagraphStyleFactory.makeList(indent: newIndent, bulletWidth: bulletWidth)
         textStorage.addAttribute(.paragraphStyle, value: paragraphStyle, range: lineRange)
 

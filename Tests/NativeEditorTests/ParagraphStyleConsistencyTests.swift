@@ -46,20 +46,20 @@ final class ParagraphStyleConsistencyTests: XCTestCase {
         )
     }
 
-    // MARK: - 测试 2: BlockFormatHandler.removeBlockFormat 行为验证
+    // MARK: - 测试 2: ParagraphManager.removeBlockFormat 行为验证
 
     /// 验证 ParagraphStyleFactory.makeDefault(alignment:) 包含行距属性
-    func testBlockFormatHandlerRemoveBlockFormat_ShouldHaveLineSpacing() {
+    func testParagraphManagerRemoveBlockFormat_ShouldHaveLineSpacing() {
         let currentAlignment: NSTextAlignment = .center
         let paragraphStyle = ParagraphStyleFactory.makeDefault(alignment: currentAlignment)
 
         XCTAssertEqual(
             paragraphStyle.lineSpacing, expectedLineSpacing,
-            "BlockFormatHandler.removeBlockFormat 创建的段落样式 lineSpacing 应为 \(expectedLineSpacing)，实际为 \(paragraphStyle.lineSpacing)"
+            "ParagraphManager.removeBlockFormat 创建的段落样式 lineSpacing 应为 \(expectedLineSpacing)，实际为 \(paragraphStyle.lineSpacing)"
         )
         XCTAssertEqual(
             paragraphStyle.paragraphSpacing, expectedParagraphSpacing,
-            "BlockFormatHandler.removeBlockFormat 创建的段落样式 paragraphSpacing 应为 \(expectedParagraphSpacing)，实际为 \(paragraphStyle.paragraphSpacing)"
+            "ParagraphManager.removeBlockFormat 创建的段落样式 paragraphSpacing 应为 \(expectedParagraphSpacing)，实际为 \(paragraphStyle.paragraphSpacing)"
         )
     }
 

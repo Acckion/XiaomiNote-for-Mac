@@ -177,7 +177,7 @@ public final class UnifiedFormatManager {
     ///
     /// 根据格式类型调用对应的处理器：
     /// - 内联格式：调用 InlineFormatHandler
-    /// - 块级格式：调用 BlockFormatHandler
+    /// - 块级格式：调用 ParagraphManager
     ///
     /// - Parameters:
     ///   - format: 要应用的格式

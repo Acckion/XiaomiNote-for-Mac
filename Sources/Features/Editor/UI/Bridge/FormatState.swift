@@ -80,6 +80,19 @@ public enum ParagraphFormat: String, CaseIterable, Equatable, Hashable, Sendable
         default: nil
         }
     }
+
+    /// 转换为 ParagraphType
+    public var paragraphType: ParagraphType {
+        switch self {
+        case .heading1: .heading(level: 1)
+        case .heading2: .heading(level: 2)
+        case .heading3: .heading(level: 3)
+        case .bulletList: .list(.bullet)
+        case .numberedList: .list(.ordered)
+        case .checkbox: .list(.checkbox)
+        case .body: .normal
+        }
+    }
 }
 
 // MARK: - 对齐格式枚举

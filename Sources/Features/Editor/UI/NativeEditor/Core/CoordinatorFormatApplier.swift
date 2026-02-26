@@ -26,9 +26,8 @@ extension NativeEditorView.Coordinator {
         currentApplicationMethod = nil
     }
 
-    /// 应用格式到选中文本
+    /// 应用格式到选中文本（单级分发）
     func applyFormat(_ format: TextFormat) {
-        // 1. 预检查 - 验证编辑器状态
         guard let textView else {
             LogService.shared.error(.editor, "格式操作错误: textView 不可用, 上下文: applyFormat(\(format.displayName))")
             return
@@ -42,25 +41,16 @@ extension NativeEditorView.Coordinator {
         let selectedRange = textView.selectedRange()
         let textLength = textStorage.length
 
-        // 记录应用前的格式状态
-        let beforeState = parent.editorContext.currentFormats
-
-        // 2. 处理空选择范围的情况
-        // 对于内联格式，如果没有选中文本，则不应用格式
-        // 对于块级格式，即使没有选中文本也可以应用到当前行
+        // 内联格式需要选中文本
         if selectedRange.length == 0, format.isInlineFormat {
             LogService.shared.error(.editor, "格式操作错误: 内联格式 '\(format.displayName)' 需要选中文本, 上下文: applyFormat")
             return
         }
 
-        // 3. 验证范围有效性
-        let effectiveRange: NSRange
-        if selectedRange.length > 0 {
-            effectiveRange = selectedRange
+        let effectiveRange: NSRange = if selectedRange.length > 0 {
+            selectedRange
         } else {
-            // 块级格式：使用当前行的范围
-            let lineRange = (textStorage.string as NSString).lineRange(for: selectedRange)
-            effectiveRange = lineRange
+            (textStorage.string as NSString).lineRange(for: selectedRange)
         }
 
         guard effectiveRange.location + effectiveRange.length <= textLength else {
@@ -68,111 +58,28 @@ extension NativeEditorView.Coordinator {
             return
         }
 
-        // MARK: - Paper-Inspired Integration (Task 19.3)
-
-        // 4. 应用格式
-        do {
-            // 列表格式使用 applyFormatSafely，其中包含 ListFormatHandler 的 toggle 逻辑
-            // 标题和引用格式使用 ParagraphManager
-            if format.category == .blockTitle || format.category == .blockQuote {
-                let paragraphType = convertTextFormatToParagraphType(format)
-                formatParagraphManager.applyParagraphFormat(paragraphType, to: effectiveRange, in: textStorage)
-            } else {
-                try applyFormatSafely(format, to: effectiveRange, in: textStorage)
-            }
-
-            // 5. 更新编辑器上下文状态
-            updateContextAfterFormatApplication(format)
-
-            // 6. 通知内容变化
-            textDidChange(Notification(name: NSText.didChangeNotification, object: textView))
-
-        } catch {
-            // 错误处理：记录日志并尝试恢复
-            LogService.shared.error(.editor, "格式应用失败: \(error.localizedDescription), 格式: \(format.displayName), 范围: \(effectiveRange)")
-
-            // 触发状态重新同步
-            parent.editorContext.cursorFormatManager?.forceRefresh()
-        }
-    }
-
-    // MARK: - 安全格式应用
-
-    /// 将 TextFormat 转换为 ParagraphType
-    /// - Parameter format: 文本格式
-    /// - Returns: 段落类型
-    private func convertTextFormatToParagraphType(_ format: TextFormat) -> ParagraphType {
-        switch format {
-        case .heading1:
-            .heading(level: 1)
-        case .heading2:
-            .heading(level: 2)
-        case .heading3:
-            .heading(level: 3)
-        case .bulletList:
-            .list(.bullet)
-        case .numberedList:
-            .list(.ordered)
-        case .checkbox:
-            .list(.checkbox)
-        case .quote:
-            .quote
-        default:
-            .normal
-        }
-    }
-
-    /// 安全地应用格式（带错误处理）
-    /// - Parameters:
-    ///   - format: 格式类型
-    ///   - range: 应用范围
-    ///   - textStorage: 文本存储
-    /// - Throws: 格式应用错误
-    private func applyFormatSafely(_ format: TextFormat, to range: NSRange, in textStorage: NSTextStorage) throws {
-        // 开始编辑
-        textStorage.beginEditing()
-
-        defer {
-            // 确保无论如何都结束编辑
-            textStorage.endEditing()
-        }
-
-        // 列表格式使用 ListFormatHandler 的 toggle 方法
-        if format == .bulletList || format == .numberedList || format == .checkbox {
-            switch format {
-            case .bulletList:
-                ListFormatHandler.toggleBulletList(to: textStorage, range: range)
-            case .numberedList:
-                ListFormatHandler.toggleOrderedList(to: textStorage, range: range)
-            case .checkbox:
-                ListFormatHandler.toggleCheckboxList(to: textStorage, range: range)
-            default:
-                break
-            }
-
-            return
-        }
-
-        // 根据格式类型调用对应的处理器
+        // 单级分发
         switch format.category {
         case .inline:
-            InlineFormatHandler.apply(format, to: range, in: textStorage, toggle: true)
+            textStorage.beginEditing()
+            InlineFormatHandler.apply(format, to: effectiveRange, in: textStorage, toggle: true)
+            textStorage.endEditing()
 
         case .blockTitle, .blockList, .blockQuote:
-            BlockFormatHandler.apply(format, to: range, in: textStorage, toggle: true)
+            if let paragraphType = ParagraphType.from(format) {
+                formatParagraphManager.toggleParagraphFormat(paragraphType, to: effectiveRange, in: textStorage)
+            }
 
         case .alignment:
-            BlockFormatHandler.apply(format, to: range, in: textStorage, toggle: true)
+            let alignment: NSTextAlignment = (format == .alignCenter) ? .center : .right
+            ParagraphManager.toggleAlignment(alignment, to: effectiveRange, in: textStorage)
         }
-    }
 
-    /// 更新编辑器上下文状态
-    /// - Parameter format: 应用的格式
-    private func updateContextAfterFormatApplication(_: TextFormat) {
-        // 延迟更新状态，避免在视图更新中修改 @Published 属性
+        // 统一触发格式状态刷新
         Task { @MainActor in
             self.parent.editorContext.cursorFormatManager?.forceRefresh()
         }
+        textDidChange(Notification(name: NSText.didChangeNotification, object: textView))
     }
 
     // MARK: - 特殊元素插入
@@ -255,22 +162,9 @@ extension NativeEditorView.Coordinator {
     }
 
     /// 插入复选框
-    ///
-    /// 使用 ListFormatHandler.toggleCheckboxList 实现复选框列表的切换
-    /// 这确保了：
-    /// 1. 如果当前行已经是复选框列表，则移除格式
-    /// 2. 如果当前行是其他列表类型，则转换为复选框列表
-    /// 3. 如果当前行不是列表，则应用复选框列表格式
-    ///
     private func insertCheckbox(checked _: Bool, level _: Int, at location: Int, in textStorage: NSTextStorage) {
-        // 使用 ListFormatHandler.toggleCheckboxList 实现复选框列表切换
-        // 这会正确处理：
-        // 1. 在行首插入 InteractiveCheckboxAttachment
-        // 2. 设置列表类型属性
-        // 3. 处理标题格式互斥
-        // 4. 处理其他列表类型的转换
         let range = NSRange(location: location, length: 0)
-        ListFormatHandler.toggleCheckboxList(to: textStorage, range: range)
+        formatParagraphManager.toggleParagraphFormat(.list(.checkbox), to: range, in: textStorage)
     }
 
     /// 插入分割线

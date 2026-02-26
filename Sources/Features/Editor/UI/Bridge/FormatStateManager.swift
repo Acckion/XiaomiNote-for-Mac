@@ -42,6 +42,9 @@ public final class FormatStateManager: ObservableObject {
     /// 防抖间隔（毫秒）
     private let debounceInterval: TimeInterval = 0.05 // 50ms
 
+    /// Coordinator 直连引用（绕过 NativeFormatProvider/NativeEditorContext 中间层）
+    weak var coordinator: NativeEditorView.Coordinator?
+
     // MARK: - Public Publishers
 
     /// 格式状态变化发布者
@@ -94,20 +97,28 @@ public final class FormatStateManager: ObservableObject {
     /// 应用格式
     /// - Parameter format: 要应用的格式
     public func applyFormat(_ format: TextFormat) {
+        // 优先通过 Coordinator 直连调用
+        if let coordinator {
+            coordinator.applyFormat(format)
+            return
+        }
         guard let provider = activeProvider else {
             return
         }
-
         provider.applyFormat(format)
     }
 
     /// 切换格式
     /// - Parameter format: 要切换的格式
     public func toggleFormat(_ format: TextFormat) {
+        // 优先通过 Coordinator 直连调用（Coordinator.applyFormat 内置 toggle 语义）
+        if let coordinator {
+            coordinator.applyFormat(format)
+            return
+        }
         guard let provider = activeProvider else {
             return
         }
-
         provider.toggleFormat(format)
     }
 

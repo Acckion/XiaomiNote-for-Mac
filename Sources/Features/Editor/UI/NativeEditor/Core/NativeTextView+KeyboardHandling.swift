@@ -313,7 +313,7 @@ extension NativeTextView {
         let position = selectedRange().location
 
         // 检查当前行是否是勾选框列表
-        let listType = ListFormatHandler.detectListType(in: textStorage, at: position)
+        let listType = ParagraphManager.detectListType(at: position, in: textStorage)
         guard listType == .checkbox else {
             return false
         }

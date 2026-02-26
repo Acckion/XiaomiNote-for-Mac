@@ -99,15 +99,8 @@ public final class NativeFormatProvider: FormatMenuProvider {
             return
         }
 
-        let hasSelection = context.selectedRange.length > 0
-
-        if hasSelection {
-            // 选择模式：应用格式到选择范围
-            applyFormatToSelection(format, range: context.selectedRange)
-        } else {
-            // 光标模式：设置 typingAttributes
-            applyFormatAtCursor(format)
-        }
+        // 通过 NativeEditorContext 调用（内部通过 formatApplyHandler 直连 Coordinator）
+        context.applyFormat(format, method: .toolbar)
 
         // 更新格式状态并发送通知
         scheduleStateUpdate()
@@ -333,30 +326,25 @@ public final class NativeFormatProvider: FormatMenuProvider {
         let shouldSample = range.length > 1000
         let sampleInterval = shouldSample ? max(1, range.length / 100) : 1
 
-        // 遍历选择范围内的属性
+        // 遍历选择范围内的属性（委托 InlineFormatHandler 检测）
         var currentPosition = range.location
         while currentPosition < range.location + range.length {
             var effectiveRange = NSRange()
             let attributes = textStorage.attributes(at: currentPosition, effectiveRange: &effectiveRange)
 
-            // 检测加粗
-            if allBold, !isBoldInAttributes(attributes) {
+            if allBold, !InlineFormatHandler.isFormatActive(.bold, in: attributes) {
                 allBold = false
             }
-            // 检测斜体
-            if allItalic, !isItalicInAttributes(attributes) {
+            if allItalic, !InlineFormatHandler.isFormatActive(.italic, in: attributes) {
                 allItalic = false
             }
-            // 检测下划线
-            if allUnderline, !isUnderlineInAttributes(attributes) {
+            if allUnderline, !InlineFormatHandler.isFormatActive(.underline, in: attributes) {
                 allUnderline = false
             }
-            // 检测删除线
-            if allStrikethrough, !isStrikethroughInAttributes(attributes) {
+            if allStrikethrough, !InlineFormatHandler.isFormatActive(.strikethrough, in: attributes) {
                 allStrikethrough = false
             }
-            // 检测高亮
-            if allHighlight, !isHighlightInAttributes(attributes) {
+            if allHighlight, !InlineFormatHandler.isFormatActive(.highlight, in: attributes) {
                 allHighlight = false
             }
 
@@ -381,41 +369,17 @@ public final class NativeFormatProvider: FormatMenuProvider {
         state.isStrikethrough = allStrikethrough
         state.isHighlight = allHighlight
 
-        // 段落级格式：取第一个字符的段落格式
-        let firstCharAttributes = textStorage.attributes(at: range.location, effectiveRange: nil)
-        state.paragraphFormat = detectParagraphFormat(from: firstCharAttributes, textStorage: textStorage, position: range.location)
+        // 段落级格式（委托 ParagraphManager）
+        let storage = asTextStorage(textStorage)
+        state.paragraphFormat = ParagraphManager.detectParagraphFormat(at: range.location, in: storage)
 
-        // 对齐格式：取第一个字符的对齐格式
-        state.alignment = detectAlignmentFormat(from: firstCharAttributes)
+        // 对齐格式（委托 ParagraphManager）
+        state.alignment = ParagraphManager.detectAlignment(at: range.location, in: storage)
 
-        // 引用块格式：取第一个字符的引用块状态
-        state.isQuote = isQuoteInAttributes(firstCharAttributes)
+        // 引用块格式（委托 ParagraphManager）
+        state.isQuote = ParagraphManager.isQuoteFormat(at: range.location, in: storage)
 
         return state
-    }
-
-    // MARK: - 格式应用逻辑
-
-    /// 选择模式下应用格式
-    /// - Parameters:
-    ///   - format: 要应用的格式
-    ///   - range: 选择范围
-    private func applyFormatToSelection(_ format: TextFormat, range _: NSRange) {
-        guard let context = editorContext else { return }
-
-        // 使用 NativeEditorContext 的 applyFormat 方法
-        // 它会根据当前状态决定是应用还是移除格式
-        context.applyFormat(format, method: .toolbar)
-    }
-
-    /// 光标模式下应用格式
-    /// - Parameter format: 要应用的格式
-    private func applyFormatAtCursor(_ format: TextFormat) {
-        guard let context = editorContext else { return }
-
-        // 使用 NativeEditorContext 的 applyFormat 方法
-        // 它会设置 typingAttributes
-        context.applyFormat(format, method: .toolbar)
     }
 
     // MARK: - 私有方法 - 格式检测辅助
@@ -433,188 +397,32 @@ public final class NativeFormatProvider: FormatMenuProvider {
     ) -> FormatState {
         var state = FormatState()
 
-        // 检测字符级格式
-        state.isBold = isBoldInAttributes(attributes)
-        state.isItalic = isItalicInAttributes(attributes)
-        state.isUnderline = isUnderlineInAttributes(attributes)
-        state.isStrikethrough = isStrikethroughInAttributes(attributes)
-        state.isHighlight = isHighlightInAttributes(attributes)
+        // 检测字符级格式（委托 InlineFormatHandler）
+        state.isBold = InlineFormatHandler.isFormatActive(.bold, in: attributes)
+        state.isItalic = InlineFormatHandler.isFormatActive(.italic, in: attributes)
+        state.isUnderline = InlineFormatHandler.isFormatActive(.underline, in: attributes)
+        state.isStrikethrough = InlineFormatHandler.isFormatActive(.strikethrough, in: attributes)
+        state.isHighlight = InlineFormatHandler.isFormatActive(.highlight, in: attributes)
 
-        // 检测段落级格式
-        state.paragraphFormat = detectParagraphFormat(from: attributes, textStorage: textStorage, position: position)
+        // 检测段落级格式（委托 ParagraphManager）
+        let storage = asTextStorage(textStorage)
+        state.paragraphFormat = ParagraphManager.detectParagraphFormat(at: position, in: storage)
 
-        // 检测对齐格式
-        state.alignment = detectAlignmentFormat(from: attributes)
+        // 检测对齐格式（委托 ParagraphManager）
+        state.alignment = ParagraphManager.detectAlignment(at: position, in: storage)
 
-        // 检测引用块格式
-        state.isQuote = isQuoteInAttributes(attributes)
+        // 检测引用块格式（委托 ParagraphManager）
+        state.isQuote = ParagraphManager.isQuoteFormat(at: position, in: storage)
 
         return state
     }
 
-    /// 检测加粗格式
-    private func isBoldInAttributes(_ attributes: [NSAttributedString.Key: Any]) -> Bool {
-        guard let font = attributes[.font] as? NSFont else { return false }
-
-        let traits = font.fontDescriptor.symbolicTraits
-        if traits.contains(.bold) {
-            return true
+    /// 将 NSAttributedString 转为 NSTextStorage（供 ParagraphManager 调用）
+    private func asTextStorage(_ text: NSAttributedString) -> NSTextStorage {
+        if let storage = text as? NSTextStorage {
+            return storage
         }
-
-        // 备用检测：检查字体名称
-        let fontName = font.fontName.lowercased()
-        if fontName.contains("bold") || fontName.contains("-bold") {
-            return true
-        }
-
-        // 备用检测：检查字体 weight
-        if let weightTrait = font.fontDescriptor.object(forKey: .traits) as? [NSFontDescriptor.TraitKey: Any],
-           let weight = weightTrait[.weight] as? CGFloat
-        {
-            return weight >= 0.4
-        }
-
-        return false
-    }
-
-    /// 检测斜体格式
-    private func isItalicInAttributes(_ attributes: [NSAttributedString.Key: Any]) -> Bool {
-        // 方法 1: 检查 obliqueness 属性（用于中文斜体）
-        if let obliqueness = attributes[.obliqueness] as? Double, obliqueness > 0 {
-            return true
-        }
-
-        // 方法 2: 检查字体特性
-        if let font = attributes[.font] as? NSFont {
-            let traits = font.fontDescriptor.symbolicTraits
-            if traits.contains(.italic) {
-                return true
-            }
-
-            // 备用检测：检查字体名称
-            let fontName = font.fontName.lowercased()
-            if fontName.contains("italic") || fontName.contains("oblique") {
-                return true
-            }
-        }
-
-        return false
-    }
-
-    /// 检测下划线格式
-    private func isUnderlineInAttributes(_ attributes: [NSAttributedString.Key: Any]) -> Bool {
-        if let underlineStyle = attributes[.underlineStyle] as? Int, underlineStyle != 0 {
-            return true
-        }
-        return false
-    }
-
-    /// 检测删除线格式
-    private func isStrikethroughInAttributes(_ attributes: [NSAttributedString.Key: Any]) -> Bool {
-        if let strikethroughStyle = attributes[.strikethroughStyle] as? Int, strikethroughStyle != 0 {
-            return true
-        }
-        return false
-    }
-
-    /// 检测高亮格式
-    private func isHighlightInAttributes(_ attributes: [NSAttributedString.Key: Any]) -> Bool {
-        if let backgroundColor = attributes[.backgroundColor] as? NSColor {
-            // 排除透明或白色背景
-            if backgroundColor.alphaComponent > 0.1, backgroundColor != .clear, backgroundColor != .white {
-                return true
-            }
-        }
-        return false
-    }
-
-    /// 检测引用块格式
-    private func isQuoteInAttributes(_ attributes: [NSAttributedString.Key: Any]) -> Bool {
-        if let isQuote = attributes[.quoteBlock] as? Bool {
-            return isQuote
-        }
-        return false
-    }
-
-    /// 检测段落格式
-    /// - Parameters:
-    ///   - attributes: 属性字典
-    ///   - textStorage: 文本存储
-    ///   - position: 位置
-    /// - Returns: 段落格式
-    ///
-    /// 标题检测完全基于字体大小，因为在小米笔记中字体大小和标题类型是一一对应的
-    ///
-    private func detectParagraphFormat(
-        from attributes: [NSAttributedString.Key: Any],
-        textStorage: NSAttributedString,
-        position: Int
-    ) -> ParagraphFormat {
-        // 使用 FontSizeManager 检查字体大小来检测标题格式
-        // 在小米笔记中，字体大小和标题类型是一一对应的
-        if let font = attributes[.font] as? NSFont {
-            let fontSize = font.pointSize
-            let detectedFormat = FontSizeConstants.detectParagraphFormat(fontSize: fontSize)
-            if detectedFormat != .body {
-                return detectedFormat
-            }
-        }
-
-        // 检查列表类型
-        // 获取当前行的范围
-        let string = textStorage.string as NSString
-        let lineRange = string.lineRange(for: NSRange(location: position, length: 0))
-
-        if lineRange.location < textStorage.length {
-            let lineAttributes = textStorage.attributes(at: lineRange.location, effectiveRange: nil)
-
-            // 检查 listType 属性
-            if let listType = lineAttributes[.listType] {
-                if let listTypeEnum = listType as? ListType {
-                    switch listTypeEnum {
-                    case .bullet: return .bulletList
-                    case .ordered: return .numberedList
-                    case .checkbox: return .checkbox
-                    case .none: break
-                    }
-                } else if let listTypeString = listType as? String {
-                    switch listTypeString {
-                    case "bullet": return .bulletList
-                    case "ordered", "order": return .numberedList
-                    case "checkbox": return .checkbox
-                    default: break
-                    }
-                }
-            }
-
-            // 检查附件类型
-            if let attachment = lineAttributes[.attachment] as? NSTextAttachment {
-                if attachment is InteractiveCheckboxAttachment {
-                    return .checkbox
-                } else if attachment is BulletAttachment {
-                    return .bulletList
-                } else if attachment is OrderAttachment {
-                    return .numberedList
-                }
-            }
-        }
-
-        return .body
-    }
-
-    /// 检测对齐格式
-    /// - Parameter attributes: 属性字典
-    /// - Returns: 对齐格式
-    private func detectAlignmentFormat(from attributes: [NSAttributedString.Key: Any]) -> AlignmentFormat {
-        guard let paragraphStyle = attributes[.paragraphStyle] as? NSParagraphStyle else {
-            return .left
-        }
-
-        switch paragraphStyle.alignment {
-        case .center: return .center
-        case .right: return .right
-        default: return .left
-        }
+        return NSTextStorage(attributedString: text)
     }
 
     // MARK: - 私有方法 - 状态更新

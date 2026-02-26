@@ -37,10 +37,10 @@ public extension ListBehaviorHandler {
 
         // 首先，向上查找同级别的有序列表项，确定起始编号
         let startLineRange = string.lineRange(for: NSRange(location: startPosition, length: 0))
-        let startListType = ListFormatHandler.detectListType(in: textStorage, at: startLineRange.location)
+        let startListType = ParagraphManager.detectListType(at: startLineRange.location, in: textStorage)
 
         if startListType == .ordered {
-            currentIndent = ListFormatHandler.getListIndent(in: textStorage, at: startLineRange.location)
+            currentIndent = ParagraphManager.getListIndent(at: startLineRange.location, in: textStorage)
 
             // 向上查找同级别的有序列表项
             var searchPosition = startLineRange.location
@@ -48,12 +48,12 @@ public extension ListBehaviorHandler {
                 let prevLineEnd = searchPosition - 1
                 let prevLineRange = string.lineRange(for: NSRange(location: prevLineEnd, length: 0))
 
-                let prevListType = ListFormatHandler.detectListType(in: textStorage, at: prevLineRange.location)
-                let prevIndent = ListFormatHandler.getListIndent(in: textStorage, at: prevLineRange.location)
+                let prevListType = ParagraphManager.detectListType(at: prevLineRange.location, in: textStorage)
+                let prevIndent = ParagraphManager.getListIndent(at: prevLineRange.location, in: textStorage)
 
                 if prevListType == .ordered && prevIndent == currentIndent {
                     // 找到同级别的有序列表项
-                    let prevNumber = ListFormatHandler.getListNumber(in: textStorage, at: prevLineRange.location)
+                    let prevNumber = ParagraphManager.getListNumber(at: prevLineRange.location, in: textStorage)
                     expectedNumber = prevNumber + 1
                     break
                 } else if prevListType == .none || prevIndent < (currentIndent ?? 1) {
@@ -70,8 +70,8 @@ public extension ListBehaviorHandler {
 
         while currentPosition < textStorage.length {
             let lineRange = string.lineRange(for: NSRange(location: currentPosition, length: 0))
-            let listType = ListFormatHandler.detectListType(in: textStorage, at: lineRange.location)
-            let indent = ListFormatHandler.getListIndent(in: textStorage, at: lineRange.location)
+            let listType = ParagraphManager.detectListType(at: lineRange.location, in: textStorage)
+            let indent = ParagraphManager.getListIndent(at: lineRange.location, in: textStorage)
 
             // 如果不是有序列表或缩进级别不同，停止更新
             if listType != .ordered {
@@ -115,14 +115,14 @@ public extension ListBehaviorHandler {
 
         let string = textStorage.string as NSString
         let lineRange = string.lineRange(for: NSRange(location: position, length: 0))
-        let listType = ListFormatHandler.detectListType(in: textStorage, at: lineRange.location)
+        let listType = ParagraphManager.detectListType(at: lineRange.location, in: textStorage)
 
         // 只处理有序列表
         guard listType == .ordered else {
             return
         }
 
-        let currentIndent = ListFormatHandler.getListIndent(in: textStorage, at: lineRange.location)
+        let currentIndent = ParagraphManager.getListIndent(at: lineRange.location, in: textStorage)
 
         // 向上查找列表的开头
         var listStartPosition = lineRange.location
@@ -132,8 +132,8 @@ public extension ListBehaviorHandler {
             let prevLineEnd = searchPosition - 1
             let prevLineRange = string.lineRange(for: NSRange(location: prevLineEnd, length: 0))
 
-            let prevListType = ListFormatHandler.detectListType(in: textStorage, at: prevLineRange.location)
-            let prevIndent = ListFormatHandler.getListIndent(in: textStorage, at: prevLineRange.location)
+            let prevListType = ParagraphManager.detectListType(at: prevLineRange.location, in: textStorage)
+            let prevIndent = ParagraphManager.getListIndent(at: prevLineRange.location, in: textStorage)
 
             if prevListType == .ordered, prevIndent == currentIndent {
                 // 找到同级别的有序列表项，继续向上搜索
@@ -153,8 +153,8 @@ public extension ListBehaviorHandler {
 
         while currentPosition < textStorage.length {
             let currentLineRange = string.lineRange(for: NSRange(location: currentPosition, length: 0))
-            let currentListType = ListFormatHandler.detectListType(in: textStorage, at: currentLineRange.location)
-            let indent = ListFormatHandler.getListIndent(in: textStorage, at: currentLineRange.location)
+            let currentListType = ParagraphManager.detectListType(at: currentLineRange.location, in: textStorage)
+            let indent = ParagraphManager.getListIndent(at: currentLineRange.location, in: textStorage)
 
             // 如果不是有序列表或缩进级别不同，停止更新
             if currentListType != .ordered || indent != currentIndent {
@@ -192,14 +192,14 @@ public extension ListBehaviorHandler {
 
         let string = textStorage.string as NSString
         let lineRange = string.lineRange(for: NSRange(location: position, length: 0))
-        let listType = ListFormatHandler.detectListType(in: textStorage, at: lineRange.location)
+        let listType = ParagraphManager.detectListType(at: lineRange.location, in: textStorage)
 
         // 只检查有序列表
         guard listType == .ordered else {
             return true
         }
 
-        let currentIndent = ListFormatHandler.getListIndent(in: textStorage, at: lineRange.location)
+        let currentIndent = ParagraphManager.getListIndent(at: lineRange.location, in: textStorage)
 
         // 向上查找列表的开头
         var listStartPosition = lineRange.location
@@ -209,8 +209,8 @@ public extension ListBehaviorHandler {
             let prevLineEnd = searchPosition - 1
             let prevLineRange = string.lineRange(for: NSRange(location: prevLineEnd, length: 0))
 
-            let prevListType = ListFormatHandler.detectListType(in: textStorage, at: prevLineRange.location)
-            let prevIndent = ListFormatHandler.getListIndent(in: textStorage, at: prevLineRange.location)
+            let prevListType = ParagraphManager.detectListType(at: prevLineRange.location, in: textStorage)
+            let prevIndent = ParagraphManager.getListIndent(at: prevLineRange.location, in: textStorage)
 
             if prevListType == .ordered, prevIndent == currentIndent {
                 listStartPosition = prevLineRange.location
@@ -226,14 +226,14 @@ public extension ListBehaviorHandler {
 
         while currentPosition < textStorage.length {
             let currentLineRange = string.lineRange(for: NSRange(location: currentPosition, length: 0))
-            let currentListType = ListFormatHandler.detectListType(in: textStorage, at: currentLineRange.location)
-            let indent = ListFormatHandler.getListIndent(in: textStorage, at: currentLineRange.location)
+            let currentListType = ParagraphManager.detectListType(at: currentLineRange.location, in: textStorage)
+            let indent = ParagraphManager.getListIndent(at: currentLineRange.location, in: textStorage)
 
             if currentListType != .ordered || indent != currentIndent {
                 break
             }
 
-            let actualNumber = ListFormatHandler.getListNumber(in: textStorage, at: currentLineRange.location)
+            let actualNumber = ParagraphManager.getListNumber(at: currentLineRange.location, in: textStorage)
             if actualNumber != expectedNumber {
                 return false
             }
@@ -263,13 +263,13 @@ public extension ListBehaviorHandler {
 
         let string = textStorage.string as NSString
         let lineRange = string.lineRange(for: NSRange(location: position, length: 0))
-        let listType = ListFormatHandler.detectListType(in: textStorage, at: lineRange.location)
+        let listType = ParagraphManager.detectListType(at: lineRange.location, in: textStorage)
 
         guard listType == .ordered else {
             return []
         }
 
-        let currentIndent = ListFormatHandler.getListIndent(in: textStorage, at: lineRange.location)
+        let currentIndent = ParagraphManager.getListIndent(at: lineRange.location, in: textStorage)
 
         // 向上查找列表的开头
         var listStartPosition = lineRange.location
@@ -279,8 +279,8 @@ public extension ListBehaviorHandler {
             let prevLineEnd = searchPosition - 1
             let prevLineRange = string.lineRange(for: NSRange(location: prevLineEnd, length: 0))
 
-            let prevListType = ListFormatHandler.detectListType(in: textStorage, at: prevLineRange.location)
-            let prevIndent = ListFormatHandler.getListIndent(in: textStorage, at: prevLineRange.location)
+            let prevListType = ParagraphManager.detectListType(at: prevLineRange.location, in: textStorage)
+            let prevIndent = ParagraphManager.getListIndent(at: prevLineRange.location, in: textStorage)
 
             if prevListType == .ordered, prevIndent == currentIndent {
                 listStartPosition = prevLineRange.location
@@ -296,14 +296,14 @@ public extension ListBehaviorHandler {
 
         while currentPosition < textStorage.length {
             let currentLineRange = string.lineRange(for: NSRange(location: currentPosition, length: 0))
-            let currentListType = ListFormatHandler.detectListType(in: textStorage, at: currentLineRange.location)
-            let indent = ListFormatHandler.getListIndent(in: textStorage, at: currentLineRange.location)
+            let currentListType = ParagraphManager.detectListType(at: currentLineRange.location, in: textStorage)
+            let indent = ParagraphManager.getListIndent(at: currentLineRange.location, in: textStorage)
 
             if currentListType != .ordered || indent != currentIndent {
                 break
             }
 
-            let number = ListFormatHandler.getListNumber(in: textStorage, at: currentLineRange.location)
+            let number = ParagraphManager.getListNumber(at: currentLineRange.location, in: textStorage)
             numbers.append(number)
 
             currentPosition = currentLineRange.location + currentLineRange.length

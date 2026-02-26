@@ -67,13 +67,13 @@ extension NativeEditorView {
         }
 
         private func setupObservers() {
-            // 监听格式变化
-            parent.editorContext.formatChangePublisher
-                .receive(on: DispatchQueue.main)
-                .sink { [weak self] format in
-                    self?.applyFormat(format)
-                }
-                .store(in: &cancellables)
+            // 注入格式应用处理器（直连，绕过发布-订阅）
+            parent.editorContext.formatApplyHandler = { [weak self] format in
+                self?.applyFormat(format)
+            }
+
+            // 注入 Coordinator 引用到 FormatStateManager（直连格式操作）
+            parent.editorContext.formatStateManager?.coordinator = self
 
             // 监听特殊元素插入
             parent.editorContext.specialElementPublisher

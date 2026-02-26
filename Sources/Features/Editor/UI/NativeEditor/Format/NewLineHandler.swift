@@ -678,29 +678,32 @@ public extension NewLineContext {
 
         let lineRange = string.lineRange(for: NSRange(location: safePositionForLineRange, length: 0))
 
-        // 检测块级格式
-        // 使用安全位置来检测格式
+        // 检测块级格式（使用 ParagraphManager 统一检测）
         let blockFormat: TextFormat? = if safePositionForLineRange < textStorage.length {
-            BlockFormatHandler.detect(at: safePositionForLineRange, in: textStorage)
+            ParagraphManager.detectCurrentParagraphType(at: safePositionForLineRange, in: textStorage).textFormat
         } else if safePositionForLineRange > 0 {
-            // 如果在文档末尾，检查前一个字符的格式
-            BlockFormatHandler.detect(at: safePositionForLineRange - 1, in: textStorage)
+            ParagraphManager.detectCurrentParagraphType(at: safePositionForLineRange - 1, in: textStorage).textFormat
         } else {
             nil
         }
 
-        // 检测对齐方式
-        let alignment: NSTextAlignment = if safePositionForLineRange < textStorage.length {
-            BlockFormatHandler.detectAlignment(at: safePositionForLineRange, in: textStorage)
+        // 检测对齐方式（使用 ParagraphManager 统一检测）
+        let detectedAlignment: AlignmentFormat = if safePositionForLineRange < textStorage.length {
+            ParagraphManager.detectAlignment(at: safePositionForLineRange, in: textStorage)
         } else if safePositionForLineRange > 0 {
-            BlockFormatHandler.detectAlignment(at: safePositionForLineRange - 1, in: textStorage)
+            ParagraphManager.detectAlignment(at: safePositionForLineRange - 1, in: textStorage)
         } else {
             .left
         }
+        let alignment: NSTextAlignment = switch detectedAlignment {
+        case .left: .left
+        case .center: .center
+        case .right: .right
+        }
 
-        // 检测列表项是否为空
+        // 检测列表项是否为空（使用 ParagraphManager 统一检测）
         let isListEmpty: Bool = if let format = blockFormat, format.category == .blockList {
-            BlockFormatHandler.isListItemEmpty(at: position, in: textStorage)
+            ParagraphManager.isListItemEmpty(at: position, in: textStorage)
         } else {
             false
         }
