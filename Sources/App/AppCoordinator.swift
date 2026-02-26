@@ -97,6 +97,10 @@ public final class AppCoordinator: ObservableObject {
 
     let audioPanelViewModel: AudioPanelViewModel
 
+    // MARK: - 事件订阅
+
+    private var authEventTask: Task<Void, Never>?
+
     // MARK: - 初始化
 
     public init(dependencies: Dependencies, windowManager: WindowManager) {
@@ -146,15 +150,19 @@ public final class AppCoordinator: ObservableObject {
         noteEditorState.start()
         await folderState.start()
         syncState.start()
-        authState.start()
+        await authState.start()
 
         if authState.isLoggedIn {
             await syncEngine.start()
         }
+
+        subscribeAuthEvents()
     }
 
     /// 停止新架构组件，释放事件订阅
     public func stop() {
+        authEventTask?.cancel()
+        authEventTask = nil
         noteListState.stop()
         noteEditorState.stop()
         folderState.stop()
@@ -231,5 +239,22 @@ public final class AppCoordinator: ObservableObject {
     /// 移除主窗口控制器
     public func removeWindowController(_ controller: MainWindowController) {
         windowManager.removeWindowController(controller)
+    }
+
+    // MARK: - 登录事件订阅
+
+    /// 监听登录事件，登录成功后启动 SyncEngine
+    private func subscribeAuthEvents() {
+        authEventTask = Task { [weak self] in
+            guard let self else { return }
+            let stream = await eventBus.subscribe(to: AuthEvent.self)
+            for await event in stream {
+                guard !Task.isCancelled else { break }
+                if case .loggedIn = event {
+                    LogService.shared.info(.app, "用户登录成功，启动 SyncEngine")
+                    await syncEngine.start()
+                }
+            }
+        }
     }
 }

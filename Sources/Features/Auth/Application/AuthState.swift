@@ -61,22 +61,20 @@ public final class AuthState: ObservableObject {
 
     // MARK: - 生命周期
 
-    func start() {
-        Task {
-            isLoggedIn = await apiClient.isAuthenticated()
-            isOnline = onlineStateManager.isOnline
+    func start() async {
+        isLoggedIn = await apiClient.isAuthenticated()
+        isOnline = onlineStateManager.isOnline
 
-            authEventTask = Task { [weak self] in
-                guard let self else { return }
-                let stream = await eventBus.subscribe(to: AuthEvent.self)
-                for await event in stream {
-                    guard !Task.isCancelled else { break }
-                    handleAuthEvent(event)
-                }
+        authEventTask = Task { [weak self] in
+            guard let self else { return }
+            let stream = await eventBus.subscribe(to: AuthEvent.self)
+            for await event in stream {
+                guard !Task.isCancelled else { break }
+                handleAuthEvent(event)
             }
-
-            startCookieValidityCheck()
         }
+
+        startCookieValidityCheck()
     }
 
     func stop() {
