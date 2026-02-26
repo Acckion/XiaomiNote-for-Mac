@@ -1,0 +1,448 @@
+import Combine
+import Foundation
+
+// MARK: - 操作处理器
+
+/// 操作处理器（调度层）
+///
+/// 负责操作的调度、重试和错误分类，具体操作逻辑委托给各 handler：
+/// - 立即处理（网络可用时）
+/// - 队列处理（批量处理待处理操作）
+/// - 重试处理（处理需要重试的操作）
+/// - 错误分类和处理
+/// - 指数退避重试策略
+public actor OperationProcessor {
+
+    // MARK: - 重试配置
+
+    private let config: OperationQueueConfig
+
+    private let failurePolicy: OperationFailurePolicy
+
+    // MARK: - 依赖
+
+    private let operationQueue: UnifiedOperationQueue
+    private let apiClient: APIClient
+    private let syncStateManager: SyncStateManager
+    private let eventBus: EventBus
+    private let idMappingRegistry: IdMappingRegistry
+    private let networkMonitor: NetworkMonitor
+
+    /// handler 字典，按操作类型分发
+    private let handlers: [OperationType: OperationHandler]
+
+    // MARK: - 状态
+
+    private var isProcessingQueue = false
+    private var isProcessingRetries = false
+    private var currentOperationId: String?
+
+    // MARK: - 初始化
+
+    init(
+        operationQueue: UnifiedOperationQueue,
+        apiClient: APIClient,
+        syncStateManager: SyncStateManager,
+        eventBus: EventBus,
+        idMappingRegistry: IdMappingRegistry,
+        handlers: [OperationType: OperationHandler],
+        networkMonitor: NetworkMonitor,
+        config: OperationQueueConfig = .default
+    ) {
+        self.operationQueue = operationQueue
+        self.apiClient = apiClient
+        self.syncStateManager = syncStateManager
+        self.eventBus = eventBus
+        self.idMappingRegistry = idMappingRegistry
+        self.handlers = handlers
+        self.networkMonitor = networkMonitor
+        self.config = config
+        self.failurePolicy = OperationFailurePolicy(config: config)
+    }
+
+    // MARK: - 网络状态检查
+
+    private func isNetworkConnected() async -> Bool {
+        await MainActor.run { networkMonitor.isConnected }
+    }
+
+    // MARK: - 公共属性
+
+    public var isProcessing: Bool {
+        isProcessingQueue || isProcessingRetries
+    }
+
+    public var currentOperation: String? {
+        currentOperationId
+    }
+}
+
+// MARK: - 操作执行
+
+extension OperationProcessor {
+
+    /// 根据操作类型查表分发到对应 handler
+    private func executeOperation(_ operation: NoteOperation) async throws {
+        guard let handler = handlers[operation.type] else {
+            throw NSError(
+                domain: "OperationProcessor",
+                code: 400,
+                userInfo: [NSLocalizedDescriptionKey: "不支持的操作类型: \(operation.type.rawValue)"]
+            )
+        }
+        try await handler.handle(operation)
+    }
+}
+
+// MARK: - 立即处理
+
+public extension OperationProcessor {
+
+    func processImmediately(_ operation: NoteOperation) async {
+        guard await isNetworkConnected() else { return }
+        guard await apiClient.isAuthenticated() else { return }
+
+        currentOperationId = operation.id
+        defer { currentOperationId = nil }
+
+        do {
+            try operationQueue.markProcessing(operation.id)
+            try await executeOperation(operation)
+            try operationQueue.markCompleted(operation.id)
+        } catch {
+            LogService.shared.error(.sync, "立即处理操作失败 - 操作ID: \(operation.id), 错误: \(error)")
+            await handleOperationFailure(operation: operation, error: error)
+        }
+    }
+}
+
+// MARK: - 队列处理
+
+public extension OperationProcessor {
+
+    func processQueue() async {
+        guard !isProcessingQueue else {
+            LogService.shared.debug(.sync, "队列正在处理中，跳过")
+            return
+        }
+
+        guard await isNetworkConnected() else {
+            LogService.shared.debug(.sync, "网络不可用，跳过队列处理")
+            return
+        }
+
+        guard await apiClient.isAuthenticated() else {
+            LogService.shared.debug(.sync, "未认证，跳过队列处理")
+            return
+        }
+
+        isProcessingQueue = true
+        defer { isProcessingQueue = false }
+
+        LogService.shared.info(.sync, "开始处理队列")
+
+        let pendingOperations = operationQueue.getPendingOperations()
+
+        guard !pendingOperations.isEmpty else {
+            LogService.shared.debug(.sync, "队列为空，无需处理")
+            return
+        }
+
+        LogService.shared.debug(.sync, "待处理操作数量: \(pendingOperations.count)")
+
+        var successCount = 0
+        var failureCount = 0
+
+        let firstPassStats = await processOperationBatch(pendingOperations)
+        successCount += firstPassStats.successCount
+        failureCount += firstPassStats.failureCount
+
+        let firstSkipped = firstPassStats.skippedProcessing + firstPassStats.skippedNotReady + firstPassStats.skippedFileUpload
+        LogService.shared.info(
+            .sync,
+            "首轮处理: 总计 \(pendingOperations.count), 执行 \(firstPassStats.successCount + firstPassStats.failureCount), 跳过 \(firstSkipped)(处理中: \(firstPassStats.skippedProcessing), 未到重试时间: \(firstPassStats.skippedNotReady), 等待文件上传: \(firstPassStats.skippedFileUpload))"
+        )
+
+        currentOperationId = nil
+
+        // 处理过程中可能有新操作入队，检查并处理
+        let remainingOperations = operationQueue.getPendingOperations()
+        if !firstPassStats.networkInterrupted,
+           !remainingOperations.isEmpty,
+           await isNetworkConnected()
+        {
+            LogService.shared.debug(.sync, "发现新入队的操作，继续处理: \(remainingOperations.count)")
+            let secondPassStats = await processOperationBatch(remainingOperations)
+            successCount += secondPassStats.successCount
+            failureCount += secondPassStats.failureCount
+
+            let secondSkipped = secondPassStats.skippedProcessing + secondPassStats.skippedNotReady + secondPassStats.skippedFileUpload
+            LogService.shared.info(
+                .sync,
+                "次轮处理: 总计 \(remainingOperations.count), 执行 \(secondPassStats.successCount + secondPassStats.failureCount), 跳过 \(secondSkipped)(处理中: \(secondPassStats.skippedProcessing), 未到重试时间: \(secondPassStats.skippedNotReady), 等待文件上传: \(secondPassStats.skippedFileUpload))"
+            )
+
+            currentOperationId = nil
+        }
+
+        LogService.shared.info(.sync, "队列处理完成: 成功 \(successCount), 失败 \(failureCount)")
+
+        // 确认暂存的 syncTag
+        do {
+            let confirmed = try await syncStateManager.confirmPendingSyncTagIfNeeded()
+            if confirmed {
+                LogService.shared.debug(.sync, "OperationProcessor 已确认暂存的 syncTag")
+            }
+        } catch {
+            LogService.shared.warning(.sync, "OperationProcessor 确认 syncTag 失败: \(error.localizedDescription)")
+        }
+
+        await eventBus.publish(OperationEvent.queueProcessingCompleted(successCount: successCount, failedCount: failureCount))
+        await eventBus.publish(SyncEvent.completed(result: SyncEventResult(
+            downloadedCount: 0,
+            uploadedCount: successCount,
+            deletedCount: 0,
+            duration: 0
+        )))
+    }
+}
+
+// MARK: - 错误分类（委托给 OperationFailurePolicy）
+
+public extension OperationProcessor {
+
+    func classifyError(_ error: Error) -> OperationErrorType {
+        failurePolicy.classifyError(error)
+    }
+
+    func isRetryable(_ error: Error) -> Bool {
+        failurePolicy.isRetryable(error)
+    }
+
+    func requiresUserAction(_: Error) -> Bool {
+        false
+    }
+}
+
+// MARK: - 重试延迟计算
+
+public extension OperationProcessor {
+
+    func calculateRetryDelay(retryCount: Int) -> TimeInterval {
+        failurePolicy.calculateRetryDelay(retryCount: retryCount)
+    }
+}
+
+// MARK: - 重试处理
+
+public extension OperationProcessor {
+
+    func processRetries() async {
+        guard !isProcessingRetries else {
+            LogService.shared.debug(.sync, "OperationProcessor 重试正在处理中，跳过")
+            return
+        }
+
+        guard await isNetworkConnected() else {
+            LogService.shared.debug(.sync, "OperationProcessor 网络不可用，跳过重试处理")
+            return
+        }
+
+        guard await apiClient.isAuthenticated() else {
+            LogService.shared.debug(.sync, "OperationProcessor 未认证，跳过重试处理")
+            return
+        }
+
+        isProcessingRetries = true
+        defer { isProcessingRetries = false }
+
+        let retryOperations = operationQueue.getOperationsReadyForRetry()
+
+        guard !retryOperations.isEmpty else { return }
+
+        LogService.shared.info(.sync, "OperationProcessor 开始处理重试，数量: \(retryOperations.count)")
+
+        var successCount = 0
+        var failureCount = 0
+
+        for operation in retryOperations {
+            guard await isNetworkConnected() else {
+                LogService.shared.warning(.sync, "OperationProcessor 网络断开，停止重试处理")
+                break
+            }
+
+            guard operation.retryCount < config.maxRetryCount else {
+                LogService.shared.warning(.sync, "OperationProcessor 操作超过最大重试次数: \(operation.id)")
+                continue
+            }
+
+            currentOperationId = operation.id
+
+            do {
+                try operationQueue.markProcessing(operation.id)
+                try await executeOperation(operation)
+                try operationQueue.markCompleted(operation.id)
+                successCount += 1
+                LogService.shared.debug(.sync, "OperationProcessor 重试成功: \(operation.id)")
+            } catch {
+                failureCount += 1
+                await handleOperationFailure(operation: operation, error: error)
+            }
+        }
+
+        currentOperationId = nil
+
+        if successCount > 0 || failureCount > 0 {
+            LogService.shared.info(.sync, "OperationProcessor 重试处理完成，成功: \(successCount), 失败: \(failureCount)")
+
+            do {
+                let confirmed = try await syncStateManager.confirmPendingSyncTagIfNeeded()
+                if confirmed {
+                    LogService.shared.debug(.sync, "OperationProcessor 已确认暂存的 syncTag")
+                }
+            } catch {
+                LogService.shared.warning(.sync, "OperationProcessor 确认 syncTag 失败: \(error.localizedDescription)")
+            }
+        }
+    }
+
+    func scheduleRetryCheck(delay: TimeInterval = 30.0) async {
+        try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
+        await processRetries()
+    }
+}
+
+// MARK: - 成功/失败处理
+
+extension OperationProcessor {
+    struct OperationBatchStats {
+        var successCount = 0
+        var failureCount = 0
+        var networkInterrupted = false
+        var skippedProcessing = 0
+        var skippedNotReady = 0
+        var skippedFileUpload = 0
+    }
+
+    /// 跳过原因
+    enum SkipReason {
+        case processing
+        case notReadyForRetry
+        case waitingFileUpload
+    }
+
+    private func skipReason(for operation: NoteOperation) -> SkipReason? {
+        guard operation.status != .processing else { return .processing }
+
+        if operation.status == .failed,
+           let nextRetryAt = operation.nextRetryAt,
+           nextRetryAt > Date()
+        {
+            return .notReadyForRetry
+        }
+
+        if operation.type == .cloudUpload || operation.type == .noteCreate {
+            let resolvedNoteId = idMappingRegistry.resolveId(operation.noteId)
+            if operationQueue.hasPendingFileUpload(for: resolvedNoteId) ||
+                operationQueue.hasPendingFileUpload(for: operation.noteId)
+            {
+                return .waitingFileUpload
+            }
+        }
+
+        return nil
+    }
+
+    private func processOperationBatch(_ operations: [NoteOperation]) async -> OperationBatchStats {
+        var stats = OperationBatchStats()
+
+        for operation in operations {
+            guard await isNetworkConnected() else {
+                LogService.shared.warning(.sync, "网络断开，停止队列处理")
+                stats.networkInterrupted = true
+                break
+            }
+
+            if let reason = skipReason(for: operation) {
+                switch reason {
+                case .processing:
+                    stats.skippedProcessing += 1
+                case .notReadyForRetry:
+                    stats.skippedNotReady += 1
+                case .waitingFileUpload:
+                    LogService.shared.debug(.sync, "跳过 \(operation.type.rawValue)，等待文件上传完成: \(operation.noteId.prefix(8))...")
+                    stats.skippedFileUpload += 1
+                }
+                continue
+            }
+
+            currentOperationId = operation.id
+
+            do {
+                try operationQueue.markProcessing(operation.id)
+                try await executeOperation(operation)
+                try operationQueue.markCompleted(operation.id)
+                stats.successCount += 1
+                LogService.shared.debug(.sync, "处理成功: \(operation.id), type: \(operation.type.rawValue)")
+                await eventBus.publish(OperationEvent.operationCompleted)
+            } catch {
+                stats.failureCount += 1
+                let errorType = classifyError(error)
+                if errorType == .authExpired {
+                    await eventBus.publish(OperationEvent.authFailed)
+                }
+                await handleOperationFailure(operation: operation, error: error)
+            }
+        }
+
+        return stats
+    }
+
+    private func handleOperationFailure(operation: NoteOperation, error: Error) async {
+        let errorType = failurePolicy.classifyError(error)
+        let decision = failurePolicy.decide(error: error, retryCount: operation.retryCount)
+
+        LogService.shared.error(.sync, "操作失败: \(operation.id), 错误类型: \(errorType.rawValue)")
+
+        do {
+            switch decision {
+            case let .retry(delay):
+                try operationQueue.scheduleRetry(operation.id, delay: delay)
+                LogService.shared.debug(.sync, "安排重试: \(operation.id), 延迟 \(String(format: "%.1f", delay)) 秒")
+            case let .abandon(reason):
+                try operationQueue.markFailed(operation.id, error: error, errorType: errorType)
+                LogService.shared.error(.sync, "操作最终失败: \(operation.id), 原因: \(reason)")
+            }
+        } catch {
+            LogService.shared.error(.sync, "更新操作状态失败: \(error)")
+        }
+    }
+
+}
+
+// MARK: - 启动时处理
+
+public extension OperationProcessor {
+
+    func processOperationsAtStartup() async -> (successCount: Int, failureCount: Int) {
+        LogService.shared.info(.sync, "OperationProcessor 启动时处理离线队列")
+
+        guard await isNetworkConnected() else {
+            LogService.shared.debug(.sync, "OperationProcessor 网络不可用，跳过启动处理")
+            return (0, 0)
+        }
+
+        guard await apiClient.isAuthenticated() else {
+            LogService.shared.debug(.sync, "OperationProcessor 未认证，跳过启动处理")
+            return (0, 0)
+        }
+
+        await processQueue()
+
+        let stats = operationQueue.getStatistics()
+        let successCount = stats["completed"] ?? 0
+        let failureCount = (stats["failed"] ?? 0) + (stats["authFailed"] ?? 0) + (stats["maxRetryExceeded"] ?? 0)
+
+        return (successCount, failureCount)
+    }
+}

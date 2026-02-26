@@ -106,8 +106,17 @@
             }
 
             // 创建 SwiftUI 设置视图
-            let settingsView = SettingsView(syncState: coordinator.syncState, authState: coordinator.authState, noteStore: coordinator.noteStore)
-                .frame(minWidth: 550, minHeight: 500)
+            let settingsView = SettingsView(
+                syncState: coordinator.syncState,
+                authState: coordinator.authState,
+                noteStore: coordinator.noteStore,
+                apiClient: coordinator.networkModule.apiClient,
+                operationQueue: coordinator.syncModule.operationQueue,
+                operationProcessor: coordinator.syncModule.operationProcessor,
+                idMappingRegistry: coordinator.syncModule.idMappingRegistry,
+                editorConfigurationManager: coordinator.editorModule.editorConfigurationManager
+            )
+            .frame(minWidth: 550, minHeight: 500)
 
             // 使用 NSHostingController 包装 SwiftUI 视图
             let hostingController = NSHostingController(rootView: settingsView)

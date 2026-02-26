@@ -6,7 +6,6 @@ import Foundation
 /// 所有 API 类（NoteAPI、FolderAPI 等）都通过此类执行网络请求。
 /// 使用 actor 隔离保证认证状态的线程安全。
 public actor APIClient {
-    public static let shared = APIClient()
 
     // MARK: - 配置常量
 
@@ -43,28 +42,25 @@ public actor APIClient {
     // MARK: - 网络请求管理器
 
     /// 注入的网络请求管理器（NetworkModule 创建时传入）
-    private let requestManager: NetworkRequestManager?
+    private let requestManager: NetworkRequestManager
+
+    /// 注入的网络日志记录器（NetworkModule 创建时传入）
+    private let networkLogger: NetworkLogger
+
+    /// 注入的 PassTokenManager（NetworkModule 创建后通过 setter 设置，解决循环依赖）
+    private var passTokenManager: PassTokenManager?
 
     @MainActor
     private func getRequestManager() -> NetworkRequestManager {
-        if let manager = requestManager {
-            return manager
-        }
-        return NetworkRequestManager.shared
+        requestManager
     }
 
     // MARK: - 初始化
 
     /// NetworkModule 使用的构造器
-    init(requestManager: NetworkRequestManager) {
+    init(requestManager: NetworkRequestManager, networkLogger: NetworkLogger) {
         self.requestManager = requestManager
-        Task {
-            await loadCredentials()
-        }
-    }
-
-    private init() {
-        self.requestManager = nil
+        self.networkLogger = networkLogger
         Task {
             await loadCredentials()
         }
@@ -115,7 +111,7 @@ public actor APIClient {
         cachePolicy: NetworkRequest.CachePolicy = .noCache
     ) async throws -> sending [String: Any] {
         let bodyString = body.flatMap { String(data: $0, encoding: .utf8) }
-        await NetworkLogger.shared.logRequest(
+        await networkLogger.logRequest(
             url: url,
             method: method,
             headers: headers,
@@ -136,7 +132,7 @@ public actor APIClient {
 
             let responseString = String(data: response.data, encoding: .utf8)
 
-            await NetworkLogger.shared.logResponse(
+            await networkLogger.logResponse(
                 url: url,
                 method: method,
                 statusCode: response.response.statusCode,
@@ -156,7 +152,7 @@ public actor APIClient {
 
             return try JSONSerialization.jsonObject(with: response.data) as? [String: Any] ?? [:]
         } catch {
-            await NetworkLogger.shared.logError(url: url, method: method, error: error)
+            await networkLogger.logError(url: url, method: method, error: error)
             throw error
         }
     }
@@ -224,6 +220,11 @@ public actor APIClient {
         return true
     }
 
+    /// 设置 PassTokenManager 引用（解决循环依赖：PassTokenManager 需要 APIClient，APIClient 需要 PassTokenManager）
+    func setPassTokenManager(_ manager: PassTokenManager) {
+        passTokenManager = manager
+    }
+
     /// 刷新 Cookie（通过 PassTokenManager 三步流程）
     func refreshCookie() async throws -> Bool {
         let isValid = await MainActor.run {
@@ -234,8 +235,12 @@ public actor APIClient {
             return true
         }
 
+        guard let passTokenManager else {
+            throw MiNoteError.notAuthenticated
+        }
+
         do {
-            let _ = try await PassTokenManager.shared.refreshServiceToken()
+            let _ = try await passTokenManager.refreshServiceToken()
             return true
         } catch {
             throw error

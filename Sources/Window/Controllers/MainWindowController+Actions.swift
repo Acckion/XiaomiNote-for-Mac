@@ -16,79 +16,27 @@
     public extension MainWindowController {
 
         @objc func createNewNote(_: Any?) {
-            Task {
-                await coordinator.noteListState.createNewNote(inFolder: coordinator.folderState.selectedFolderId ?? "0")
-            }
+            coordinator.commandDispatcher.dispatch(CreateNoteCommand(folderId: coordinator.folderState.selectedFolderId))
         }
 
         @objc func createNewFolder(_: Any?) {
-            // 显示新建文件夹对话框
-            let alert = NSAlert()
-            alert.messageText = "新建文件夹"
-            alert.informativeText = "请输入文件夹名称："
-            alert.alertStyle = .informational
-            alert.addButton(withTitle: "确定")
-            alert.addButton(withTitle: "取消")
-
-            let inputField = NSTextField(frame: NSRect(x: 0, y: 0, width: 300, height: 24))
-            inputField.placeholderString = "文件夹名称"
-            alert.accessoryView = inputField
-
-            alert.window.initialFirstResponder = inputField
-
-            let response = alert.runModal()
-            if response == .alertFirstButtonReturn {
-                let folderName = inputField.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
-                if !folderName.isEmpty {
-                    Task {
-                        await coordinator.folderState.createFolder(name: folderName)
-                    }
-                }
-            }
+            coordinator.commandDispatcher.dispatch(CreateFolderCommand())
         }
 
         @objc func performSync(_: Any?) {
-            coordinator.syncState.requestFullSync(mode: .normal)
+            coordinator.commandDispatcher.dispatch(SyncCommand())
         }
 
         @objc func shareNote(_: Any?) {
-            guard let note = coordinator.noteListState.selectedNote else { return }
-
-            let sharingService = NSSharingServicePicker(items: [
-                note.title,
-                note.content,
-            ])
-
-            if let window,
-               let contentView = window.contentView
-            {
-                sharingService.show(relativeTo: NSRect.zero, of: contentView, preferredEdge: .minY)
-            }
+            coordinator.commandDispatcher.dispatch(ShareNoteCommand(window: window))
         }
 
         @objc internal func toggleStarNote(_: Any?) {
-            guard let note = coordinator.noteListState.selectedNote else { return }
-            Task {
-                await coordinator.noteListState.toggleStar(note)
-            }
+            coordinator.commandDispatcher.dispatch(ToggleStarCommand())
         }
 
         @objc internal func deleteNote(_: Any?) {
-            guard let note = coordinator.noteListState.selectedNote else { return }
-
-            let alert = NSAlert()
-            alert.messageText = "删除笔记"
-            alert.informativeText = "确定要删除笔记 \"\(note.title)\" 吗？此操作无法撤销。"
-            alert.alertStyle = .warning
-            alert.addButton(withTitle: "删除")
-            alert.addButton(withTitle: "取消")
-
-            let response = alert.runModal()
-            if response == .alertFirstButtonReturn {
-                Task {
-                    await coordinator.noteListState.deleteNote(note)
-                }
-            }
+            coordinator.commandDispatcher.dispatch(DeleteNoteCommand())
         }
 
         @objc internal func restoreNote(_: Any?) {
@@ -96,39 +44,39 @@
         }
 
         @objc func toggleBold(_: Any?) {
-            // 切换粗体
-            // 这里应该调用编辑器API
+            guard coordinator.noteListState.selectedNote != nil else { return }
+            coordinator.editorModule.formatStateManager.toggleFormat(.bold)
         }
 
         @objc func toggleItalic(_: Any?) {
-            // 切换斜体
+            guard coordinator.noteListState.selectedNote != nil else { return }
+            coordinator.editorModule.formatStateManager.toggleFormat(.italic)
         }
 
         @objc func toggleUnderline(_: Any?) {
-            // 切换下划线
+            guard coordinator.noteListState.selectedNote != nil else { return }
+            coordinator.editorModule.formatStateManager.toggleFormat(.underline)
         }
 
         @objc func toggleStrikethrough(_: Any?) {
-            // 切换删除线
+            guard coordinator.noteListState.selectedNote != nil else { return }
+            coordinator.editorModule.formatStateManager.toggleFormat(.strikethrough)
         }
 
         @objc internal func toggleCode(_: Any?) {
-            // 切换代码格式
+            guard coordinator.noteListState.selectedNote != nil else { return }
+            // TODO(spec-121): TextFormat 暂无 .code 成员，需要扩展枚举
+            LogService.shared.debug(.window, "toggleCode 待实现")
         }
 
         @objc internal func insertLink(_: Any?) {
-            // 插入链接
+            guard coordinator.noteListState.selectedNote != nil else { return }
+            // TODO(spec-121): 链接插入需要 NativeEditorContext 提供 insertLink API
+            LogService.shared.debug(.window, "insertLink 待实现")
         }
 
         @objc internal func showSettings(_: Any?) {
-            // 显示设置窗口
-
-            // 创建设置窗口控制器
-            let settingsWindowController = SettingsWindowController(coordinator: coordinator)
-
-            // 显示窗口
-            settingsWindowController.showWindow(nil)
-            settingsWindowController.window?.makeKeyAndOrderFront(nil)
+            coordinator.commandDispatcher.dispatch(ShowSettingsCommand())
         }
 
         @objc func showLogin(_: Any?) {
@@ -138,7 +86,7 @@
             }
 
             // 创建登录视图
-            let loginView = LoginView(authState: coordinator.authState)
+            let loginView = LoginView(authState: coordinator.authState, passTokenManager: coordinator.passTokenManager)
 
             // 创建托管控制器
             let hostingController = NSHostingController(rootView: loginView)
@@ -357,7 +305,11 @@
             }
 
             // 创建历史记录视图
-            let historyView = NoteHistoryView(noteEditorState: coordinator.noteEditorState, noteId: note.id)
+            let historyView = NoteHistoryView(
+                noteEditorState: coordinator.noteEditorState,
+                noteId: note.id,
+                formatConverter: coordinator.editorModule.formatConverter
+            )
 
             // 创建托管控制器
             let hostingController = NSHostingController(rootView: historyView)
@@ -401,7 +353,7 @@
             }
 
             // 创建回收站视图
-            let trashView = TrashView(noteListState: coordinator.noteListState)
+            let trashView = TrashView(noteListState: coordinator.noteListState, formatConverter: coordinator.editorModule.formatConverter)
 
             // 创建托管控制器
             let hostingController = NSHostingController(rootView: trashView)
@@ -553,7 +505,7 @@
         }
 
         @objc internal func performIncrementalSync(_: Any?) {
-            coordinator.syncState.requestSync(mode: .incremental)
+            coordinator.commandDispatcher.dispatch(IncrementalSyncCommand())
         }
 
         @objc internal func resetSyncStatus(_: Any?) {
@@ -572,7 +524,7 @@
                 let alert = NSAlert()
                 alert.messageText = "同步状态"
                 var infoText = "上次同步时间: \(formatter.string(from: lastSync))"
-                let stats = UnifiedOperationQueue.shared.getStatistics()
+                let stats = operationQueue.getStatistics()
                 let pendingCount = (stats["pending"] ?? 0) + (stats["failed"] ?? 0)
                 if pendingCount > 0 {
                     infoText += "\n待处理操作: \(pendingCount) 个"
@@ -584,7 +536,7 @@
                 let alert = NSAlert()
                 alert.messageText = "同步状态"
                 var infoText = "从未同步"
-                let stats = UnifiedOperationQueue.shared.getStatistics()
+                let stats = operationQueue.getStatistics()
                 let pendingCount = (stats["pending"] ?? 0) + (stats["failed"] ?? 0)
                 if pendingCount > 0 {
                     infoText += "\n待处理操作: \(pendingCount) 个"
@@ -600,7 +552,7 @@
         @objc internal func processOfflineOperations(_: Any?) {
 
             // 检查是否有待处理的离线操作（使用新的 UnifiedOperationQueue）
-            let unifiedQueue = UnifiedOperationQueue.shared
+            let unifiedQueue = operationQueue
             let stats = unifiedQueue.getStatistics()
             let pendingCount = (stats["pending"] ?? 0) + (stats["failed"] ?? 0)
 
@@ -626,7 +578,7 @@
             if response == .alertFirstButtonReturn {
                 // 开始处理离线操作（使用新的 OperationProcessor）
                 Task {
-                    await OperationProcessor.shared.processQueue()
+                    await self.operationProcessor.processQueue()
                 }
             }
         }
@@ -639,7 +591,8 @@
 
             // 创建离线操作进度视图，传递关闭回调
             let progressView = OfflineOperationsProgressView(
-                processor: OperationProcessor.shared,
+                processor: operationProcessor,
+                operationQueue: operationQueue,
                 onClose: { [weak window, weak self] in
                     // 关闭sheet
                     if let sheetWindow = self?.currentSheetWindow {
@@ -690,7 +643,7 @@
         @objc internal func retryFailedOperations(_: Any?) {
 
             // 检查是否有失败的离线操作（使用新的 UnifiedOperationQueue）
-            let unifiedQueue = UnifiedOperationQueue.shared
+            let unifiedQueue = operationQueue
             let stats = unifiedQueue.getStatistics()
             let failedCount = stats["failed"] ?? 0
 
@@ -716,7 +669,7 @@
             if response == .alertFirstButtonReturn {
                 // 重试失败的操作（使用新的 OperationProcessor）
                 Task {
-                    await OperationProcessor.shared.processRetries()
+                    await self.operationProcessor.processRetries()
                 }
             }
         }
@@ -784,6 +737,7 @@
                 self?.formatMenuPopover?.performClose(nil)
                 self?.formatMenuPopover = nil
             }
+            .environmentObject(coordinator.editorModule.formatStateManager)
 
             let hostingController = NSHostingController(rootView: AnyView(formatMenuView))
             let contentSize = NSSize(width: 280, height: 450)
@@ -898,48 +852,18 @@
             coordinator.noteEditorState.nativeEditorContext
         }
 
-        // MARK: - 编辑菜单动作
-
-        @objc func undo(_: Any?) {
-            // 这里应该调用编辑器API
-            // 暂时使用控制台输出
-        }
-
-        @objc func redo(_: Any?) {
-            // 这里应该调用编辑器API
-            // 暂时使用控制台输出
-        }
-
-        @objc func cut(_: Any?) {
-            // 这里应该调用编辑器API
-            // 暂时使用控制台输出
-        }
-
-        @objc func copy(_: Any?) {
-            // 这里应该调用编辑器API
-            // 暂时使用控制台输出
-        }
-
-        @objc func paste(_: Any?) {
-            // 这里应该调用编辑器API
-            // 暂时使用控制台输出
-        }
-
-        @objc override func selectAll(_: Any?) {
-            // 这里应该调用编辑器API
-            // 暂时使用控制台输出
-        }
-
         // MARK: - 格式菜单动作
 
         @objc func increaseFontSize(_: Any?) {
-            // 这里应该调用编辑器API
-            // 暂时使用控制台输出
+            guard coordinator.noteListState.selectedNote != nil else { return }
+            // TODO(spec-121): FontSizeManager 暂无 increase/decrease API
+            LogService.shared.debug(.window, "increaseFontSize 待实现")
         }
 
         @objc func decreaseFontSize(_: Any?) {
-            // 这里应该调用编辑器API
-            // 暂时使用控制台输出
+            guard coordinator.noteListState.selectedNote != nil else { return }
+            // TODO(spec-121): FontSizeManager 暂无 increase/decrease API
+            LogService.shared.debug(.window, "decreaseFontSize 待实现")
         }
 
         @objc func increaseIndent(_: Any?) {
@@ -969,53 +893,53 @@
         }
 
         @objc func alignLeft(_: Any?) {
-            // 这里应该调用编辑器API
-            // 暂时使用控制台输出
+            guard coordinator.noteListState.selectedNote != nil else { return }
+            coordinator.editorModule.formatStateManager.clearAlignmentFormat()
         }
 
         @objc func alignCenter(_: Any?) {
-            // 这里应该调用编辑器API
-            // 暂时使用控制台输出
+            guard coordinator.noteListState.selectedNote != nil else { return }
+            coordinator.editorModule.formatStateManager.applyFormat(.alignCenter)
         }
 
         @objc func alignRight(_: Any?) {
-            // 这里应该调用编辑器API
-            // 暂时使用控制台输出
+            guard coordinator.noteListState.selectedNote != nil else { return }
+            coordinator.editorModule.formatStateManager.applyFormat(.alignRight)
         }
 
         @objc func toggleBulletList(_: Any?) {
-            // 这里应该调用编辑器API
-            // 暂时使用控制台输出
+            guard coordinator.noteListState.selectedNote != nil else { return }
+            coordinator.editorModule.formatStateManager.toggleFormat(.bulletList)
         }
 
         @objc func toggleNumberedList(_: Any?) {
-            // 这里应该调用编辑器API
-            // 暂时使用控制台输出
+            guard coordinator.noteListState.selectedNote != nil else { return }
+            coordinator.editorModule.formatStateManager.toggleFormat(.numberedList)
         }
 
         @objc func toggleCheckboxList(_: Any?) {
-            // 这里应该调用编辑器API
-            // 暂时使用控制台输出
+            guard coordinator.noteListState.selectedNote != nil else { return }
+            coordinator.editorModule.formatStateManager.toggleFormat(.checkbox)
         }
 
         @objc func setHeading1(_: Any?) {
-            // 这里应该调用编辑器API
-            // 暂时使用控制台输出
+            guard coordinator.noteListState.selectedNote != nil else { return }
+            coordinator.editorModule.formatStateManager.applyFormat(.heading1)
         }
 
         @objc func setHeading2(_: Any?) {
-            // 这里应该调用编辑器API
-            // 暂时使用控制台输出
+            guard coordinator.noteListState.selectedNote != nil else { return }
+            coordinator.editorModule.formatStateManager.applyFormat(.heading2)
         }
 
         @objc func setHeading3(_: Any?) {
-            // 这里应该调用编辑器API
-            // 暂时使用控制台输出
+            guard coordinator.noteListState.selectedNote != nil else { return }
+            coordinator.editorModule.formatStateManager.applyFormat(.heading3)
         }
 
         @objc func setBodyText(_: Any?) {
-            // 这里应该调用编辑器API
-            // 暂时使用控制台输出
+            guard coordinator.noteListState.selectedNote != nil else { return }
+            coordinator.editorModule.formatStateManager.clearParagraphFormat()
         }
 
         // MARK: - 格式菜单动作（Apple Notes 风格）

@@ -8,7 +8,6 @@ import Network
 /// 在线状态的计算由 OnlineStateManager 统一管理
 @MainActor
 final class NetworkMonitor: ObservableObject {
-    static let shared = NetworkMonitor()
 
     /// 网络是否连接（只检查网络连接，不检查认证）
     @Published var isConnected = true
@@ -16,7 +15,7 @@ final class NetworkMonitor: ObservableObject {
     private let monitor = NWPathMonitor()
     private let queue = DispatchQueue(label: "NetworkMonitor")
 
-    private init() {
+    init() {
         startMonitoring()
     }
 

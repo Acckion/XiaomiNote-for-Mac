@@ -86,7 +86,11 @@
             guard let window else { return }
 
             // 创建SwiftUI历史记录视图
-            let historyView = NoteHistoryView(noteEditorState: coordinator.noteEditorState, noteId: noteId)
+            let historyView = NoteHistoryView(
+                noteEditorState: coordinator.noteEditorState,
+                noteId: noteId,
+                formatConverter: coordinator.editorModule.formatConverter
+            )
 
             // 使用NSHostingController包装SwiftUI视图
             let hostingController = NSHostingController(rootView: historyView)

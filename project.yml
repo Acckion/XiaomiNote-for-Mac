@@ -7,43 +7,15 @@ options:
   xcodeVersion: "15.0"
 
 targets:
-  MiNoteLibrary:
-    type: framework
+  MiNoteMac:
+    type: application
     platform: macOS
     deploymentTarget: "15.0"
     sources:
       - path: Sources
         excludes:
           - "**/*.md"
-          - "App/**"
-    settings:
-      base:
-        PRODUCT_NAME: MiNoteLibrary
-        PRODUCT_BUNDLE_IDENTIFIER: com.minote.MiNoteLibrary
-        MACOSX_DEPLOYMENT_TARGET: "15.0"
-        SWIFT_VERSION: "6.0"
-        DEFINES_MODULE: YES
-        GENERATE_INFOPLIST_FILE: YES
-        DYLIB_INSTALL_NAME_BASE: "@rpath"
-        SKIP_INSTALL: YES
-      configs:
-        Debug:
-          SWIFT_OPTIMIZATION_LEVEL: -Onone
-          DEBUG_INFORMATION_FORMAT: dwarf-with-dsym
-        Release:
-          SWIFT_OPTIMIZATION_LEVEL: -O
-
-  MiNoteMac:
-    type: application
-    platform: macOS
-    deploymentTarget: "15.0"
-    dependencies:
-      - target: MiNoteLibrary
-        embed: true
-    sources:
-      - path: Sources/App
-        excludes:
-          - "App.swift.backup"
+          - "App/App.swift.backup"
     resources:
       - path: Sources/App/Assets.xcassets
     settings:
@@ -61,7 +33,6 @@ targets:
         Debug:
           SWIFT_OPTIMIZATION_LEVEL: -Onone
           DEBUG_INFORMATION_FORMAT: dwarf-with-dsym
-          ENABLE_DEBUG_DYLIB: YES
         Release:
           SWIFT_OPTIMIZATION_LEVEL: -O
     info:
@@ -83,11 +54,14 @@ targets:
     platform: macOS
     deploymentTarget: "15.0"
     dependencies:
-      - target: MiNoteLibrary
+      - target: MiNoteMac
     sources:
       - path: Tests/NativeEditorTests
       - path: Tests/ViewModelTests
       - path: Tests/CoordinatorTests
+      - path: Tests/CommandTests
+      - path: Tests/ImportTests
+      - path: Tests/SyncTests
       - path: Tests/Mocks
       - path: Tests/TestSupport
     settings:
@@ -110,19 +84,5 @@ schemes:
       targets:
         MiNoteMac: all
     test:
-      targets:
-        - MiNoteLibraryTests
-  
-  MiNoteLibrary:
-    build:
-      targets:
-        MiNoteLibrary: all
-    test:
-      targets:
-        - MiNoteLibraryTests
-    run:
-      config: Debug
-    test:
-      config: Debug
       targets:
         - MiNoteLibraryTests

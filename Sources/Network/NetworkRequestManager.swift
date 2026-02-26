@@ -60,8 +60,7 @@ struct NetworkResponse {
 /// - 统一的重试机制和错误处理
 /// - 401 自动刷新 Cookie 并重试
 @MainActor
-final class NetworkRequestManager: ObservableObject {
-    static let shared = NetworkRequestManager()
+public final class NetworkRequestManager: ObservableObject {
 
     // MARK: - 配置
 
@@ -71,8 +70,14 @@ final class NetworkRequestManager: ObservableObject {
 
     // MARK: - 依赖
 
-    private let errorHandler = NetworkErrorHandler.shared
-    private let onlineStateManager = OnlineStateManager.shared
+    private let errorHandler: NetworkErrorHandler
+    private var onlineStateManager: OnlineStateManager?
+
+    /// 注入的 APIClient（NetworkModule 创建时传入，用于 401 刷新后获取新 headers）
+    private var apiClient: APIClient?
+
+    /// 注入的 PassTokenManager（NetworkModule 创建后通过 setter 设置，解决循环依赖）
+    private var passTokenManager: PassTokenManager?
 
     // MARK: - 队列状态
 
@@ -96,12 +101,29 @@ final class NetworkRequestManager: ObservableObject {
 
     private var cancellables = Set<AnyCancellable>()
 
-    init() {
-        setupOnlineStateMonitoring()
+    init(errorHandler: NetworkErrorHandler) {
+        self.errorHandler = errorHandler
         startProcessingLoop()
     }
 
+    /// 设置 APIClient 引用（NetworkModule 创建后回调设置，解决循环依赖）
+    func setAPIClient(_ client: APIClient) {
+        apiClient = client
+    }
+
+    /// 设置 PassTokenManager 引用（解决循环依赖）
+    func setPassTokenManager(_ manager: PassTokenManager) {
+        passTokenManager = manager
+    }
+
+    /// 设置 OnlineStateManager 引用（SyncModule 创建后回调设置，解决跨模块依赖）
+    public func setOnlineStateManager(_ manager: OnlineStateManager) {
+        onlineStateManager = manager
+        setupOnlineStateMonitoring()
+    }
+
     private func setupOnlineStateMonitoring() {
+        guard let onlineStateManager else { return }
         onlineStateManager.$isOnline
             .sink { [weak self] isOnline in
                 Task { @MainActor in
@@ -152,7 +174,7 @@ final class NetworkRequestManager: ObservableObject {
         }
 
         // 离线时直接加入重试队列
-        guard onlineStateManager.isOnline else {
+        guard onlineStateManager?.isOnline != false else {
             if request.retryOnFailure {
                 addToRetryQueue(request, retryCount: 0)
             }
@@ -196,7 +218,7 @@ final class NetworkRequestManager: ObservableObject {
 
     /// 从队列取出请求并发起执行（不阻塞循环）
     private func processNextBatch() {
-        guard onlineStateManager.isOnline else { return }
+        guard onlineStateManager?.isOnline != false else { return }
 
         while activeRequestCount < maxConcurrentRequests, !pendingRequests.isEmpty {
             let request = pendingRequests.removeFirst()
@@ -281,14 +303,19 @@ final class NetworkRequestManager: ObservableObject {
         urlRequest: URLRequest,
         request: NetworkRequest
     ) async throws -> NetworkResponse {
-        let hasPassToken = await PassTokenManager.shared.hasStoredPassToken()
+        guard let passTokenManager else {
+            await EventBus.shared.publish(AuthEvent.tokenRefreshFailed(errorMessage: "PassTokenManager 未注入"))
+            throw MiNoteError.notAuthenticated
+        }
+
+        let hasPassToken = await passTokenManager.hasStoredPassToken()
         guard hasPassToken else {
             await EventBus.shared.publish(AuthEvent.tokenRefreshFailed(errorMessage: "未存储 PassToken"))
             throw MiNoteError.notAuthenticated
         }
 
         do {
-            _ = try await PassTokenManager.shared.refreshServiceToken()
+            _ = try await passTokenManager.refreshServiceToken()
         } catch {
             await EventBus.shared.publish(
                 AuthEvent.tokenRefreshFailed(errorMessage: error.localizedDescription)
@@ -300,8 +327,10 @@ final class NetworkRequestManager: ObservableObject {
 
         // 使用新 Cookie 重建请求并重试
         var retryRequest = urlRequest
-        let newHeaders = await APIClient.shared.getHeaders()
-        retryRequest.allHTTPHeaderFields = newHeaders
+        if let client = apiClient {
+            let newHeaders = await client.getHeaders()
+            retryRequest.allHTTPHeaderFields = newHeaders
+        }
         if let originalHeaders = urlRequest.allHTTPHeaderFields {
             for (key, value) in originalHeaders where key != "Cookie" {
                 retryRequest.setValue(value, forHTTPHeaderField: key)

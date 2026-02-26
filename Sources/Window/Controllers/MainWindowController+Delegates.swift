@@ -19,7 +19,7 @@
             // 如果是主窗口关闭，从 WindowManager 移除
             if window == self.window {
                 LogService.shared.info(.window, "主窗口即将关闭，从 WindowManager 移除")
-                WindowManager.shared.removeWindowController(self)
+                coordinator.removeWindowController(self)
             }
 
             // 清理其他窗口控制器引用
@@ -120,7 +120,7 @@
                     item.attributedTitle = getOnlineStatusAttributedTitle()
                 } else if item.tag == 200 { // 离线操作状态项
                     // 更新离线操作状态（使用新的 UnifiedOperationQueue）
-                    let unifiedQueue = UnifiedOperationQueue.shared
+                    let unifiedQueue = operationQueue
                     let stats = unifiedQueue.getStatistics()
                     let pendingCount = stats["pending"] ?? 0
                     let failedCount = stats["failed"] ?? 0
@@ -246,7 +246,7 @@
             }
 
             if item.action == #selector(showOfflineOperations(_:)) {
-                let stats = UnifiedOperationQueue.shared.getStatistics()
+                let stats = operationQueue.getStatistics()
                 let pendingCount = (stats["pending"] ?? 0) + (stats["failed"] ?? 0)
                 return pendingCount > 0
             }
@@ -289,8 +289,8 @@
                 return true // 总是可以切换侧边栏
             }
 
-            // 验证撤销/重做按钮
-            if item.action == #selector(undo(_:)) || item.action == #selector(redo(_:)) {
+            // 验证撤销/重做按钮（使用 NSResponder 链标准选择器）
+            if item.action == Selector(("undo:")) || item.action == Selector(("redo:")) {
                 return coordinator.noteListState.selectedNote != nil
             }
 

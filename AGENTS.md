@@ -1,80 +1,56 @@
 # MiNoteMac 开发指南
 
-小米笔记 macOS 客户端：一个使用 Swift 开发的原生 macOS 应用，用于同步和管理小米笔记。
+小米笔记 macOS 客户端：使用 Swift 开发的原生 macOS 应用，用于同步与管理小米笔记。
 
 ## 项目概述
 
-- **语言**: Swift 6.0
-- **UI 框架**: AppKit + SwiftUI 混合架构
-- **数据存储**: SQLite 3
-- **网络请求**: URLSession
-- **项目生成**: XcodeGen
-- **最低系统要求**: macOS 15.0+
+- 语言：Swift 6.0
+- UI：AppKit + SwiftUI
+- 存储：SQLite 3
+- 网络：URLSession
+- 工程生成：XcodeGen
+- 最低系统：macOS 15.0+
 
-## 项目结构
+## 当前目录结构（2026-02）
 
-```
+```text
 Sources/
-├── App/                    # 应用程序入口（AppDelegate, MenuManager, AppStateManager）
-├── Coordinator/            # 协调器（AppCoordinator, SyncCoordinator）
-├── Core/                   # 核心基础设施
-│   ├── Cache/              # 缓存工具
-│   ├── Concurrency/        # 并发工具
-│   ├── EventBus/           # 事件总线（跨层通信）
-│   └── Pagination/         # 分页工具
-├── Extensions/             # Swift 扩展
-├── Model/                  # 数据模型（Note, Folder, NoteMapper 等）
-├── Network/                # 网络层（APIClient, NetworkModule, NoteAPI, FolderAPI, FileAPI, SyncAPI, UserAPI）
-│   ├── API/                # 领域 API 类（按功能拆分）
-│   └── Implementation/     # 网络协议实现
-├── Presentation/           # 展示层辅助
-│   └── ViewModels/         # ViewModel（音频、认证、搜索等独立模块）
-├── Service/                # 业务服务层
-│   ├── Audio/              # 音频服务
-│   ├── Authentication/     # 认证服务
-│   ├── Cache/              # 缓存服务
-│   ├── Core/               # 核心服务（StartupSequenceManager, LogService）
-│   ├── Editor/             # 编辑器服务（NoteEditingCoordinator, FormatConverter）
-│   ├── Image/              # 图片服务
-│   └── Protocols/          # 服务协议定义
-├── State/                  # 状态对象（替代 NotesViewModel）
-│   ├── AuthState           # 认证状态
-│   ├── FolderState         # 文件夹状态
-│   ├── NoteEditorState     # 编辑器状态
-│   ├── NoteListState       # 笔记列表状态
-│   ├── SearchState         # 搜索状态
-│   ├── SyncState           # 同步状态
-│   ├── ViewOptionsState    # 视图选项状态
-│   ├── ViewOptionsManager  # 视图选项管理
-│   └── ViewState           # 视图状态
-├── Store/                  # 数据存储层（DatabaseService, NoteStore）
-├── Sync/                   # 同步引擎
-│   ├── OperationQueue/     # 操作队列（UnifiedOperationQueue, OperationProcessor）
-│   ├── SyncEngine          # 同步引擎核心（1 核心 + 4 extension）
-│   └── IdMappingRegistry   # ID 映射注册表
-├── ToolbarItem/            # 工具栏组件
-├── View/                   # UI 视图组件
-│   ├── AppKitComponents/   # AppKit 视图控制器
-│   ├── Bridge/             # SwiftUI-AppKit 桥接（NativeEditorContext, EditorEnums, EditorContentManager, EditorFormatDetector）
-│   ├── NativeEditor/       # 原生富文本编辑器
-│   │   └── Core/           # 核心组件（NativeEditorView, NativeEditorCoordinator, CoordinatorFormatApplier, NativeTextView）
-│   ├── Shared/             # 共享组件（NoteMoveHelper 等）
-│   └── SwiftUIViews/       # SwiftUI 视图
-└── Window/                 # 窗口控制器
-    └── Controllers/        # MainWindowController（1 核心 + 6 extension）
-
-Tests/                      # 测试代码
-References/                 # 参考项目（不参与编译）
+├── App/
+│   ├── Bootstrap/              # AppDelegate, AppLaunchAssembler
+│   ├── Composition/            # AppCoordinatorAssembler + 域 Assembler + EditorModule/AudioModule
+│   ├── Runtime/                # AppStateManager, StartupSequenceManager, ErrorRecoveryService
+│   ├── App.swift
+│   ├── AppCoordinator.swift
+│   └── Menu*.swift             # MenuManager/MenuStateManager/MenuState/MenuItemTag
+├── Features/
+│   ├── Notes/
+│   ├── Editor/
+│   ├── Sync/
+│   ├── Auth/
+│   ├── Folders/
+│   ├── Search/
+│   └── Audio/
+├── Network/                    # APIClient, NetworkModule, NetworkRequestManager, FileAPI, DefaultNetworkMonitor
+├── Shared/
+│   ├── Contracts/              # 跨域协议
+│   ├── Kernel/                 # LogService/EventBus/DatabaseService/Command/ViewState 等核心设施
+│   └── UICommons/              # 通用 UI（Settings/Toolbar 等）
+└── Window/
+    ├── Controllers/
+    └── State/
 ```
 
 ## 构建命令
 
 ```bash
-# 生成 Xcode 项目（修改 project.yml 后必须执行）
+# 修改 project.yml 后必须执行
 xcodegen generate
 
-# 构建 Debug 版本
+# 构建 Debug
 xcodebuild -project MiNoteMac.xcodeproj -scheme MiNoteMac -configuration Debug
+
+# 运行测试
+xcodebuild test -project MiNoteMac.xcodeproj -scheme MiNoteMac -destination 'platform=macOS,arch=arm64'
 ```
 
 ## 代码规范
@@ -82,105 +58,123 @@ xcodebuild -project MiNoteMac.xcodeproj -scheme MiNoteMac -configuration Debug
 ### 禁止事项
 
 - 禁止在代码、注释、控制台输出中使用 emoji
-- 禁止添加过多解释性注释，代码应当自解释
+- 禁止使用 `print()`，统一使用 `LogService.shared`
+- 禁止“解释做什么”的冗余注释
 
 ### 注释规范
 
-- 只在复杂逻辑或非显而易见的实现处添加注释
+- 只在复杂逻辑处写注释
 - 注释使用中文
-- 避免注释描述"做什么"、"为什么"
-- 公开 API 使用文档注释（///）
+- 公开 API 用 `///`
 
 ### 日志规范
 
-- 统一使用 `LogService.shared` 记录日志，禁止使用 `print()`
-- 按模块标识记录：storage, network, sync, core, editor, app, viewmodel, window, audio
-- 按级别选择：debug（调试）、info（关键操作）、warning（性能警告）、error（失败）
-- 日志信息使用中文
+- 模块：`storage`、`network`、`sync`、`core`、`editor`、`app`、`viewmodel`、`window`、`audio`
+- 级别：`debug`、`info`、`warning`、`error`
+- 日志内容使用中文
 
 ### 命名规范
 
-- 类型名使用 PascalCase
-- 变量和函数名使用 camelCase
-- 常量使用 camelCase 或 UPPER_SNAKE_CASE
+- 类型：PascalCase
+- 变量/函数：camelCase
+- 常量：camelCase 或 UPPER_SNAKE_CASE
 - 文件名与主要类型名一致
 
 ## 架构分层
 
-```
+```text
 AppKit 控制器层 (AppDelegate, WindowController)
         ↓
-协调器层 (AppCoordinator → 管理 State 对象)
+模块工厂层 (NetworkModule → SyncModule → EditorModule → AudioModule)
         ↓
-SwiftUI 视图层 (View ← 读取 State 对象)
+协调器层 (AppCoordinator)
         ↓
-状态层 (State 对象 → 调用 Store/Sync/Service)
+业务域层 (Features/*: UI/Application/Domain/Infrastructure)
         ↓
-数据层 (NoteStore, DatabaseService, SyncEngine)
-        ↓
-数据模型层 (Model)
+共享内核层 (Shared/Kernel)
 ```
 
-## 数据格式
+## 模块工厂与启动链
 
-- **本地存储**: SQLite 数据库
-- **云端格式**: XML（小米笔记格式）
-- **编辑器格式**: NSAttributedString（原生编辑器）
+- `NetworkModule`：网络主干与 API 依赖
+- `SyncModule`：同步引擎、操作队列、在线状态
+- `EditorModule`：编辑器格式与渲染依赖
+- `AudioModule`：音频上传/缓存/状态依赖
 
-## 数据库迁移指南
+启动链：
 
-项目使用版本化迁移机制管理数据库结构变更，迁移文件位于 `Sources/Store/DatabaseMigrationManager.swift`。
+`AppDelegate -> NetworkModule -> SyncModule -> EditorModule -> AudioModule -> AppCoordinator`
 
-### 添加新迁移
+## `.shared` 约束
 
-在 `DatabaseMigrationManager.migrations` 数组中添加新条目：
+仅 9 个基础设施类允许保留 `.shared`：
 
-```swift
-static let migrations: [Migration] = [
-    // 已有迁移...
-    
-    // 新增迁移
-    Migration(
-        version: 2,  // 版本号递增
-        description: "添加笔记归档字段",
-        sql: "ALTER TABLE notes ADD COLUMN is_archived INTEGER NOT NULL DEFAULT 0;"
-    ),
-]
+- LogService
+- DatabaseService
+- EventBus
+- AudioPlayerService
+- AudioRecorderService
+- AudioDecryptService
+- PrivateNotesPasswordManager
+- ViewOptionsManager
+- PerformanceService
+
+其余目录禁止新增 `.shared`。
+
+## 架构治理
+
+ADR 位于 `docs/adr/`：
+
+- ADR-001：依赖方向规则
+- ADR-002：事件治理规则
+- ADR-003：网络主干规则
+- ADR-004：`.shared` 使用规则
+
+架构检查：
+
+```bash
+./scripts/check-architecture.sh
+./scripts/check-architecture.sh --strict
 ```
 
-### 迁移规则
+规则：
 
-- 版本号必须递增（1, 2, 3...），不能跳跃或修改已发布的迁移
-- 每个迁移是原子操作，失败会自动回滚
-- SQL 语句建议使用 `IF NOT EXISTS` / `IF EXISTS` 增强健壮性
-- 迁移在应用启动时自动执行
+- RULE-001：Domain 层 import 约束
+- RULE-002：`.shared` 新增约束
+- RULE-003：EventBus 生命周期约束
+- RULE-004：URLSession 主干约束
 
+CI 已启用 `--strict`。
 
-## Git 分支规范
+## 数据库迁移
 
-- `main`：主分支，仅用于发布。未得到用户明确指令时，禁止直接操作
-- `dev`：开发分支，所有功能分支的基准和合并目标
-- `feature/{编号}-{描述}`、`fix/{编号}-{描述}`、`refactor/{编号}-{描述}`：功能分支
+迁移文件：`Sources/Shared/Kernel/Store/DatabaseMigrationManager.swift`
 
-工作流：从 `dev` 创建功能分支 → 在功能分支上开发 → 等待用户指令合并回 `dev`（`--no-ff`）→ 删除功能分支
+规则：
 
-## Git 提交规范
+- 版本号严格递增
+- 不修改已发布迁移
+- 失败自动回滚
+- 启动时自动执行
 
-```
-<type>(<scope>): <subject>
-```
+## Git 规范
 
-类型：feat, fix, refactor, perf, style, docs, test, chore, revert
+分支：
 
-示例：
-- `feat(editor): 添加原生富文本编辑器支持`
-- `fix(sync): 修复离线操作队列重复执行问题`
-- `docs: 更新技术文档`
+- `main`：发布分支（无明确指令禁止直接操作）
+- `dev`：开发基线
+- 功能分支：`feature/*`、`fix/*`、`refactor/*`
+
+提交格式：
+
+`<type>(<scope>): <subject>`
+
+类型：`feat`、`fix`、`refactor`、`perf`、`style`、`docs`、`test`、`chore`、`revert`
 
 ## 注意事项
 
 1. 修改 `project.yml` 后必须执行 `xcodegen generate`
-2. 提交前确保代码可以编译通过
-3. 大型任务拆分为多个小提交
-4. 每个提交应该是可编译、可运行的状态
-5. 本项目不依赖外部开源库，所有代码均为原创实现
+2. 提交前必须保证可编译
+3. 大任务拆小提交
+4. 每个提交保持可编译、可运行
+5. 项目不依赖外部开源库（业务实现保持原创）

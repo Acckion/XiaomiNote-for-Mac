@@ -5,9 +5,24 @@
 ## [Unreleased]
 
 ### 新增
+- 架构治理基础设施（spec-125）：创建 4 篇 ADR 文档（依赖方向、事件治理、网络主干、.shared 使用规则），实现架构检查脚本（4 条规则 + 允许列表 + arch-ignore 豁免），集成到 CI（continue-on-error）
 - 独立笔记编辑器窗口（spec-107）：支持在新窗口中打开特定笔记进行编辑，包含编辑器区域和 unified 工具栏，支持重复打开检测
 
+### 移除
+- 过渡网络链路清理：删除 NetworkClient/NetworkClientProtocol 过渡抽象及其唯一消费者 DefaultAuthenticationService/DefaultImageService，清理 AuthenticationServiceProtocol/ImageServiceProtocol 无消费者协议，移除 Authentication/Image 空目录
+
 ### 重构
+- Auth + Folders 域 Vertical Slice 迁移（spec-128）：将 Auth 域 6 个文件（AuthUser、UserProfile、UserAPI、PassTokenManager、PrivateNotesPasswordManager、AuthState）迁移到 `Sources/Features/Auth/`，Folders 域 3 个文件（Folder、FolderAPI、FolderState）迁移到 `Sources/Features/Folders/`，按 Domain/Infrastructure/Application 四层架构组织，使用 `git mv` 保留文件历史，Features/ 目录现包含 Notes、Sync、Auth、Folders 四个业务域
+- Sync 域 Vertical Slice 迁移（spec-127）：将 21 个同步相关文件按四层架构迁移到 `Sources/Features/Sync/`（Domain 5 + Infrastructure 14 + Application 2 + UI 预留），包含 SyncEngine（1 核心 + 4 extension）、SyncModule 模块工厂、OperationQueue（6 个文件）、SyncAPI、SyncState、SyncCoordinator 等，删除旧 `Sources/Sync/` 目录，每层独立提交且编译通过，使用 `git mv` 保留文件历史
+- Notes 域 Vertical Slice 迁移（spec-126）：将 32 个笔记相关文件按四层架构迁移到 `Sources/Features/Notes/`（Domain 8 + Infrastructure 4 + Application 2 + UI 18），创建 `Sources/Shared/Contracts/` 预留跨域协议目录，每层独立提交且编译通过，使用 `git mv` 保留文件历史
+- 网络层单例迁入 NetworkModule（spec-125）：NetworkMonitor、NetworkErrorHandler、NetworkLogger 三个单例迁入 NetworkModule 构造器注入，消除所有外部 `.shared` 引用，`static let shared` 标记为 deprecated，保留 `.shared` 的类从 13 个减少到 10 个
+- 菜单 Command 化迁移（spec-124）：将 MenuActionHandler（1,317 行）拆分为 7 个领域 Command 文件（FormatCommands、FileCommands、WindowCommands、ViewCommands、UtilityCommands、NoteCommands、SyncCommands），共约 73 个 Command struct 通过 CommandDispatcher 统一调度，提取 MenuStateManager 分离菜单状态管理职责，AppDelegate @objc 方法简化为单行 dispatch 调用，删除 MenuActionHandler
+- OperationProcessor 拆分（spec-122）：将 OperationProcessor（1,441 行）拆分为调度层 + handler 分发模式，定义 OperationHandler 协议和 OperationResponseParser 工具结构体，按操作域拆出 NoteOperationHandler、FileOperationHandler、FolderOperationHandler 三个 actor，OperationProcessor 瘦身至 478 行纯调度层，公共接口不变，外部调用方零改动
+- 菜单命令链路收敛（spec-120）：删除编辑操作空壳方法（undo/redo/cut/copy/paste/selectAll）改走 NSResponder 链，填实格式操作方法统一调用 FormatStateManager，引入 AppCommand 协议和 CommandDispatcher 统一调度业务操作（新建/删除笔记、新建文件夹、同步、分享、设置窗口），精简 MenuActionHandler 转发层注入 CommandDispatcher
+- 调试基础设施清理（spec-119）：移除 NativeEditorLogger（800+ 行）、NativeEditorMetrics（400+ 行）、NativeEditorErrorHandler（490+ 行）、PerformanceMonitor（130 行）、ParagraphManagerDebugView、ParagraphDebugWindowController，统一使用 LogService.shared 记录日志，提取 NativeEditorError 枚举到独立文件，单例数量从 15 个减少到 12 个
+- 剩余单例清理（spec-118）：创建 AudioModule 工厂管理 4 个音频类，重构 12 个纠缠单例为构造器注入，消除约 271 处外部 `.shared` 引用，改造 AppDelegate 启动链为 NetworkModule → SyncModule → EditorModule → AudioModule → AppCoordinator，ViewOptionsManager 改用 EnvironmentObject 注入，最终仅保留 15 个基础设施类的 `static let shared`
+- 构造器注入 + EditorModule 工厂（spec-117）：创建 EditorModule 工厂集中构建编辑器层依赖图，重构 17 个编辑器层类（PerformanceCache、FontSizeManager、EditorConfigurationManager、XMLNormalizer、PerformanceMonitor、TypingOptimizer、PasteboardManager、XiaoMiFormatConverter、CustomRenderer、SpecialElementFormatHandler、UnifiedFormatManager、SafeRenderer、NativeEditorInitializer、EditorRecoveryManager、ImageStorageManager、AttachmentSelectionManager、AttachmentKeyboardHandler、FormatStateManager、CursorFormatManager）支持构造器注入，消除类内部硬编码的 .shared 交叉引用，修改 AppCoordinator/AppDelegate 接入 EditorModule，保留 3 个调试工具类（NativeEditorLogger、NativeEditorMetrics、NativeEditorErrorHandler）单例不变，保留 .shared 供未重构模块过渡期使用
+- 构造器注入 + SyncModule 工厂（spec-116）：创建 SyncModule 工厂集中构建同步层依赖图，重构 8 个同步层类（LocalStorageService、UnifiedOperationQueue、IdMappingRegistry、OperationProcessor、OnlineStateManager、SyncEngine、SyncGuard、SyncStateManager）支持构造器注入，消除 OperationProcessor 内部 13 处 IdMappingRegistry.shared 和 SyncEngine 内部 2 处 OperationProcessor.shared 硬编码引用，修改 AppCoordinator/AppDelegate 接入 SyncModule，保留 .shared 供未重构模块过渡期使用
 - 构造器注入 + 模块工厂（spec-114）：删除未使用的 DIContainer/ServiceLocator 死代码，创建 NetworkModule 工厂集中构建网络层依赖图，重构 7 个网络层类（NetworkRequestManager、APIClient、NoteAPI、FolderAPI、FileAPI、SyncAPI、UserAPI）支持构造器注入，修改 AppCoordinator/AppDelegate/AuthState 使用注入实例，保留 .shared 供未重构模块过渡期使用
 - @unchecked Sendable 清理（spec-112）：将项目中 30+ 处 @unchecked Sendable 减少到 5 处，12 个类改为 struct、7 个改为 actor、3 个添加 @MainActor、Folder.rawData 改为 Sendable 类型，保留的 5 处（DatabaseService、UnifiedOperationQueue、IdMappingRegistry、DIContainer、ServiceLocator）补充线程安全文档
 - Web 编辑器残留清理（spec-110）：删除 EditorProtocol/EditorFactory/EditorType/EditorPreferencesService 抽象层，移除所有 isUsingNativeEditor 条件判断，清理 HTML 数据通道残留，简化 EditorSettingsView 和 NativeEditorInitializer

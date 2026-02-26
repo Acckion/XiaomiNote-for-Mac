@@ -19,14 +19,18 @@
         /// 笔记列表状态
         private var noteListState: NoteListState
 
+        /// 格式转换器
+        private var formatConverter: XiaoMiFormatConverter?
+
         /// 工具栏代理
         private var toolbarDelegate: BaseSheetToolbarDelegate?
 
         // MARK: - 初始化
 
         /// 使用指定的 NoteListState 初始化窗口控制器
-        init(noteListState: NoteListState) {
+        init(noteListState: NoteListState, formatConverter: XiaoMiFormatConverter? = nil) {
             self.noteListState = noteListState
+            self.formatConverter = formatConverter
 
             // 创建窗口
             let window = NSWindow(
@@ -82,7 +86,7 @@
             guard let window else { return }
 
             // 创建SwiftUI回收站视图
-            let trashView = TrashView(noteListState: noteListState)
+            let trashView = TrashView(noteListState: noteListState, formatConverter: formatConverter)
 
             // 使用NSHostingController包装SwiftUI视图
             let hostingController = NSHostingController(rootView: trashView)

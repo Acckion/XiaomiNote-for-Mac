@@ -1,5 +1,4 @@
 import AppKit
-import MiNoteLibrary
 
 /// 菜单管理器
 /// 负责应用程序菜单的设置和管理
@@ -1091,15 +1090,6 @@ class MenuManager {
     /// 创建"调试工具"子菜单
     private func createDebugToolsSubmenu() -> NSMenu {
         let debugMenu = NSMenu(title: "调试工具")
-
-        // 段落管理器调试窗口
-        let paragraphDebugItem = NSMenuItem(
-            title: "段落管理器调试",
-            action: #selector(AppDelegate.showParagraphDebugWindow(_:)),
-            keyEquivalent: ""
-        )
-        setMenuItemIcon(paragraphDebugItem, symbolName: "text.alignleft")
-        debugMenu.addItem(paragraphDebugItem)
 
         // 调试设置窗口
         let debugSettingsItem = NSMenuItem(

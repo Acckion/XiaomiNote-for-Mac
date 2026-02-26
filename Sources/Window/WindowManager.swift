@@ -5,11 +5,6 @@ import AppKit
 @MainActor
 public class WindowManager {
 
-    // MARK: - 单例
-
-    /// 共享实例
-    public static let shared = WindowManager()
-
     // MARK: - 属性
 
     /// 主窗口控制器
@@ -29,7 +24,7 @@ public class WindowManager {
 
     // MARK: - 初始化
 
-    private init() {
+    public init() {
         LogService.shared.debug(.window, "窗口管理器初始化")
     }
 
@@ -62,7 +57,9 @@ public class WindowManager {
         let windowState = WindowState(coordinator: coordinator)
         let controller = MainWindowController(
             coordinator: coordinator,
-            windowState: windowState
+            windowState: windowState,
+            operationQueue: coordinator.syncModule.operationQueue,
+            operationProcessor: coordinator.syncModule.operationProcessor
         )
 
         mainWindowController = controller
@@ -101,7 +98,9 @@ public class WindowManager {
 
         let controller = MainWindowController(
             coordinator: coordinator,
-            windowState: windowState
+            windowState: windowState,
+            operationQueue: coordinator.syncModule.operationQueue,
+            operationProcessor: coordinator.syncModule.operationProcessor
         )
 
         windowControllers.append(controller)
@@ -295,19 +294,6 @@ public class WindowManager {
     public func removeEditorWindow(_ controller: NoteEditorWindowController) {
         editorWindowControllers.removeAll { $0 === controller }
         LogService.shared.debug(.window, "编辑器窗口已移除，剩余: \(editorWindowControllers.count)")
-    }
-
-    // MARK: - 调试工具
-
-    /// 段落管理器调试窗口控制器
-    private var paragraphDebugWindowController: ParagraphDebugWindowController?
-
-    /// 显示段落管理器调试窗口
-    public func showParagraphDebugWindow() {
-        if paragraphDebugWindowController == nil {
-            paragraphDebugWindowController = ParagraphDebugWindowController()
-        }
-        paragraphDebugWindowController?.show()
     }
 
     // MARK: - 错误处理

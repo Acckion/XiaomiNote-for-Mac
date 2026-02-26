@@ -8,7 +8,7 @@
 
 import AppKit
 import XCTest
-@testable import MiNoteLibrary
+@testable import MiNoteMac
 
 // MARK: - Bug 条件探索测试
 

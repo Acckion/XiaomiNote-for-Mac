@@ -41,6 +41,15 @@ jobs:
             -scheme MiNoteLibrary \
             -destination 'platform=macOS,arch=arm64'
 
+      - name: Architecture Check
+        id: arch-check
+        run: |
+          chmod +x scripts/check-architecture.sh
+          ./scripts/check-architecture.sh --strict 2>&1 | tee arch-check-output.txt
+          echo "ARCH_RESULT<<EOF" >> $GITHUB_ENV
+          cat arch-check-output.txt >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
+
       - name: Job Summary
         if: always()
         run: |
@@ -51,6 +60,12 @@ jobs:
           echo "| SwiftLint | ${{ steps.swiftlint.outcome }} |" >> $GITHUB_STEP_SUMMARY
           echo "| 构建 (Debug) | ${{ steps.build.outcome }} |" >> $GITHUB_STEP_SUMMARY
           echo "| 单元测试 | ${{ steps.test.outcome }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 架构检查 | ${{ steps.arch-check.outcome }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 架构检查详情" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "${{ env.ARCH_RESULT }}" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**分支**: \`${{ github.ref_name }}\`" >> $GITHUB_STEP_SUMMARY
           echo "**提交**: \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
