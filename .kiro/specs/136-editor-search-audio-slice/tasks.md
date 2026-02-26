@@ -25,60 +25,60 @@
 
 ## 任务 3：Shared/Contracts 迁入（REQ-7）
 
-- [ ] 3. 迁移服务协议到 Shared/Contracts
-  - [ ] 3.1 `git mv Sources/Service/Protocols/*.swift Sources/Shared/Contracts/`
-  - [ ] 3.2 删除 `Sources/Shared/Contracts/.gitkeep`
-  - [ ] 3.3 执行 `xcodegen generate` + 编译验证
-  - [ ] 3.4 提交：`refactor: 迁移服务协议到 Shared/Contracts`
+- [x] 3. 迁移服务协议到 Shared/Contracts
+  - [x] 3.1 `git mv Sources/Service/Protocols/*.swift Sources/Shared/Contracts/`
+  - [x] 3.2 删除 `Sources/Shared/Contracts/.gitkeep`
+  - [x] 3.3 执行 `xcodegen generate` + 编译验证
+  - [x] 3.4 提交：`refactor: 迁移服务协议到 Shared/Contracts`
 
 ## 任务 4：Shared/Kernel — 核心基础设施（REQ-5 部分）
 
-- [ ] 4. 迁移核心基础设施到 Shared/Kernel
-  - [ ] 4.1 `git mv Sources/Core/EventBus Sources/Shared/Kernel/EventBus`
-  - [ ] 4.2 `git mv Sources/Service/Core/LogService.swift Sources/Shared/Kernel/`
-  - [ ] 4.3 `git mv Sources/Service/Core/PerformanceService.swift Sources/Shared/Kernel/`
-  - [ ] 4.4 `git mv Sources/Core/Pagination/Pageable.swift Sources/Shared/Kernel/`
-  - [ ] 4.5 创建 `Sources/Shared/Kernel/Extensions/` 目录，迁移 `Sources/Extensions/*.swift`
-  - [ ] 4.6 `git mv Sources/View/SwiftUIViews/Common/PreviewHelper.swift Sources/Shared/Kernel/`
-  - [ ] 4.7 删除 `Sources/Shared/Kernel/README.md`
-  - [ ] 4.8 执行 `xcodegen generate` + 编译验证
-  - [ ] 4.9 提交：`refactor(core): 迁移 EventBus/LogService/Extensions 到 Shared/Kernel`
+- [x] 4. 迁移核心基础设施到 Shared/Kernel
+  - [x] 4.1 `git mv Sources/Core/EventBus Sources/Shared/Kernel/EventBus`
+  - [x] 4.2 `git mv Sources/Service/Core/LogService.swift Sources/Shared/Kernel/`
+  - [x] 4.3 `git mv Sources/Service/Core/PerformanceService.swift Sources/Shared/Kernel/`
+  - [x] 4.4 `git mv Sources/Core/Pagination/Pageable.swift Sources/Shared/Kernel/`
+  - [x] 4.5 创建 `Sources/Shared/Kernel/Extensions/` 目录，迁移 `Sources/Extensions/*.swift`
+  - [x] 4.6 `git mv Sources/View/SwiftUIViews/Common/PreviewHelper.swift Sources/Shared/Kernel/`
+  - [x] 4.7 删除 `Sources/Shared/Kernel/README.md`
+  - [x] 4.8 执行 `xcodegen generate` + 编译验证
+  - [x] 4.9 提交：`refactor(core): 迁移 EventBus/LogService/Extensions 到 Shared/Kernel`
 
 ## 任务 5：Shared/Kernel — 数据存储层（REQ-10）
 
-- [ ] 5. 迁移数据存储层到 Shared/Kernel/Store
-  - [ ] 5.1 创建 `Sources/Shared/Kernel/Store/Implementation/` 目录
-  - [ ] 5.2 `git mv Sources/Store/DatabaseService.swift Sources/Shared/Kernel/Store/`
-  - [ ] 5.3 `git mv Sources/Store/DatabaseService+*.swift Sources/Shared/Kernel/Store/`
-  - [ ] 5.4 `git mv Sources/Store/DatabaseMigrationManager.swift Sources/Shared/Kernel/Store/`
-  - [ ] 5.5 `git mv Sources/Store/LocalStorageService.swift Sources/Shared/Kernel/Store/`
-  - [ ] 5.6 `git mv Sources/Store/MemoryCacheManager.swift Sources/Shared/Kernel/Store/`
-  - [ ] 5.7 `git mv Sources/Store/Implementation/DefaultNoteStorage.swift Sources/Shared/Kernel/Store/Implementation/`
-  - [ ] 5.8 创建 `Sources/Shared/Kernel/Cache/` 目录
-  - [ ] 5.9 `git mv Sources/Service/Cache/Implementation/DefaultCacheService.swift Sources/Shared/Kernel/Cache/`
-  - [ ] 5.10 执行 `xcodegen generate` + 编译验证
-  - [ ] 5.11 提交：`refactor(storage): 迁移 DatabaseService/Store 到 Shared/Kernel/Store`
+- [x] 5. 迁移数据存储层到 Shared/Kernel/Store
+  - [x] 5.1 创建 `Sources/Shared/Kernel/Store/Implementation/` 目录
+  - [x] 5.2 `git mv Sources/Store/DatabaseService.swift Sources/Shared/Kernel/Store/`
+  - [x] 5.3 `git mv Sources/Store/DatabaseService+*.swift Sources/Shared/Kernel/Store/`
+  - [x] 5.4 `git mv Sources/Store/DatabaseMigrationManager.swift Sources/Shared/Kernel/Store/`
+  - [x] 5.5 `git mv Sources/Store/LocalStorageService.swift Sources/Shared/Kernel/Store/`
+  - [x] 5.6 `git mv Sources/Store/MemoryCacheManager.swift Sources/Shared/Kernel/Store/`
+  - [x] 5.7 `git mv Sources/Store/Implementation/DefaultNoteStorage.swift Sources/Shared/Kernel/Store/Implementation/`
+  - [x] 5.8 创建 `Sources/Shared/Kernel/Cache/` 目录
+  - [x] 5.9 `git mv Sources/Service/Cache/Implementation/DefaultCacheService.swift Sources/Shared/Kernel/Cache/`
+  - [x] 5.10 执行 `xcodegen generate` + 编译验证
+  - [x] 5.11 提交：`refactor(storage): 迁移 DatabaseService/Store 到 Shared/Kernel/Store`
 
 ## 任务 6：Shared/Kernel — State 文件归位（REQ-8）
 
-- [ ] 6. 迁移散落 State 文件到 Shared/Kernel
-  - [ ] 6.1 `git mv Sources/State/ViewOptionsManager.swift Sources/Shared/Kernel/`
-  - [ ] 6.2 `git mv Sources/State/ViewOptionsState.swift Sources/Shared/Kernel/`
-  - [ ] 6.3 `git mv Sources/State/ViewState.swift Sources/Shared/Kernel/`
-  - [ ] 6.4 执行 `xcodegen generate` + 编译验证
-  - [ ] 6.5 提交：`refactor: 迁移视图状态文件到 Shared/Kernel`
+- [x] 6. 迁移散落 State 文件到 Shared/Kernel
+  - [x] 6.1 `git mv Sources/State/ViewOptionsManager.swift Sources/Shared/Kernel/`
+  - [x] 6.2 `git mv Sources/State/ViewOptionsState.swift Sources/Shared/Kernel/`
+  - [x] 6.3 `git mv Sources/State/ViewState.swift Sources/Shared/Kernel/`
+  - [x] 6.4 执行 `xcodegen generate` + 编译验证
+  - [x] 6.5 提交：`refactor: 迁移视图状态文件到 Shared/Kernel`
 
 ## 任务 7：Shared/UICommons — 共享 UI 组件（REQ-6、REQ-9 部分）
 
-- [ ] 7. 迁移共享 UI 组件到 Shared/UICommons
-  - [ ] 7.1 `git mv Sources/View/Shared/OnlineStatusIndicator.swift Sources/Shared/UICommons/`
-  - [ ] 7.2 `git mv Sources/View/AppKitComponents/SidebarViewController.swift Sources/Shared/UICommons/`
-  - [ ] 7.3 `git mv Sources/View/SwiftUIViews/Common/NetworkLogView.swift Sources/Shared/UICommons/`
-  - [ ] 7.4 创建 `Sources/Shared/UICommons/Toolbar/` 目录，迁移 `Sources/ToolbarItem/*.swift`
-  - [ ] 7.5 创建 `Sources/Shared/UICommons/Settings/` 目录，迁移 `Sources/View/SwiftUIViews/Settings/*.swift`
-  - [ ] 7.6 删除 `Sources/Shared/UICommons/README.md`
-  - [ ] 7.7 执行 `xcodegen generate` + 编译验证
-  - [ ] 7.8 提交：`refactor(ui): 迁移共享 UI 组件到 Shared/UICommons`
+- [x] 7. 迁移共享 UI 组件到 Shared/UICommons
+  - [x] 7.1 `git mv Sources/View/Shared/OnlineStatusIndicator.swift Sources/Shared/UICommons/`
+  - [x] 7.2 `git mv Sources/View/AppKitComponents/SidebarViewController.swift Sources/Shared/UICommons/`
+  - [x] 7.3 `git mv Sources/View/SwiftUIViews/Common/NetworkLogView.swift Sources/Shared/UICommons/`
+  - [x] 7.4 创建 `Sources/Shared/UICommons/Toolbar/` 目录，迁移 `Sources/ToolbarItem/*.swift`
+  - [x] 7.5 创建 `Sources/Shared/UICommons/Settings/` 目录，迁移 `Sources/View/SwiftUIViews/Settings/*.swift`
+  - [x] 7.6 删除 `Sources/Shared/UICommons/README.md`
+  - [x] 7.7 执行 `xcodegen generate` + 编译验证
+  - [x] 7.8 提交：`refactor(ui): 迁移共享 UI 组件到 Shared/UICommons`
 
 ## 任务 8：Editor 域迁移 — 服务层（REQ-2 部分）
 
