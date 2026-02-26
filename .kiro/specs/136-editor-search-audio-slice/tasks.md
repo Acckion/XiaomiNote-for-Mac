@@ -8,20 +8,20 @@
 
 ## 任务 1：Search 域迁移（REQ-1）
 
-- [ ] 1. 迁移 Search 域
-  - [ ] 1.1 创建 `Features/Search/` 四层目录结构（Domain/Infrastructure/Application/UI）
-  - [ ] 1.2 `git mv Sources/State/SearchState.swift Sources/Features/Search/Application/`
-  - [ ] 1.3 `git mv Sources/View/SwiftUIViews/Search/SearchFilterMenuContent.swift Sources/Features/Search/UI/`
-  - [ ] 1.4 执行 `xcodegen generate` + 编译验证
-  - [ ] 1.5 提交：`refactor(search): 迁移 Search 域到 Features/Search`
+- [x] 1. 迁移 Search 域
+  - [x] 1.1 创建 `Features/Search/` 四层目录结构（Domain/Infrastructure/Application/UI）
+  - [x] 1.2 `git mv Sources/State/SearchState.swift Sources/Features/Search/Application/`
+  - [x] 1.3 `git mv Sources/View/SwiftUIViews/Search/SearchFilterMenuContent.swift Sources/Features/Search/UI/`
+  - [x] 1.4 执行 `xcodegen generate` + 编译验证
+  - [x] 1.5 提交：`refactor(search): 迁移 Search 域到 Features/Search`
 
 ## 任务 2：Auth 域 UI 补全（REQ-4）
 
-- [ ] 2. 补全 Auth 域 UI 层
-  - [ ] 2.1 `git mv Sources/View/SwiftUIViews/Auth/*.swift Sources/Features/Auth/UI/`
-  - [ ] 2.2 `git mv Sources/Window/Controllers/LoginWindowController.swift Sources/Features/Auth/UI/`
-  - [ ] 2.3 执行 `xcodegen generate` + 编译验证
-  - [ ] 2.4 提交：`refactor(auth): 迁移认证域 UI 到 Features/Auth/UI`
+- [x] 2. 补全 Auth 域 UI 层
+  - [x] 2.1 `git mv Sources/View/SwiftUIViews/Auth/*.swift Sources/Features/Auth/UI/`
+  - [x] 2.2 `git mv Sources/Window/Controllers/LoginWindowController.swift Sources/Features/Auth/UI/`
+  - [x] 2.3 执行 `xcodegen generate` + 编译验证
+  - [x] 2.4 提交：`refactor(auth): 迁移认证域 UI 到 Features/Auth/UI`
 
 ## 任务 3：Shared/Contracts 迁入（REQ-7）
 
