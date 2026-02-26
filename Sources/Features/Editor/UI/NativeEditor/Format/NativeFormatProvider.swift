@@ -99,15 +99,8 @@ public final class NativeFormatProvider: FormatMenuProvider {
             return
         }
 
-        let hasSelection = context.selectedRange.length > 0
-
-        if hasSelection {
-            // 选择模式：应用格式到选择范围
-            applyFormatToSelection(format, range: context.selectedRange)
-        } else {
-            // 光标模式：设置 typingAttributes
-            applyFormatAtCursor(format)
-        }
+        // 通过 NativeEditorContext 调用（内部通过 formatApplyHandler 直连 Coordinator）
+        context.applyFormat(format, method: .toolbar)
 
         // 更新格式状态并发送通知
         scheduleStateUpdate()
@@ -392,30 +385,6 @@ public final class NativeFormatProvider: FormatMenuProvider {
         state.isQuote = isQuoteInAttributes(firstCharAttributes)
 
         return state
-    }
-
-    // MARK: - 格式应用逻辑
-
-    /// 选择模式下应用格式
-    /// - Parameters:
-    ///   - format: 要应用的格式
-    ///   - range: 选择范围
-    private func applyFormatToSelection(_ format: TextFormat, range _: NSRange) {
-        guard let context = editorContext else { return }
-
-        // 使用 NativeEditorContext 的 applyFormat 方法
-        // 它会根据当前状态决定是应用还是移除格式
-        context.applyFormat(format, method: .toolbar)
-    }
-
-    /// 光标模式下应用格式
-    /// - Parameter format: 要应用的格式
-    private func applyFormatAtCursor(_ format: TextFormat) {
-        guard let context = editorContext else { return }
-
-        // 使用 NativeEditorContext 的 applyFormat 方法
-        // 它会设置 typingAttributes
-        context.applyFormat(format, method: .toolbar)
     }
 
     // MARK: - 私有方法 - 格式检测辅助

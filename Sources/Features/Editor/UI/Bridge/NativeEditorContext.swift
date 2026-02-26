@@ -104,8 +104,8 @@ public class NativeEditorContext: ObservableObject {
     /// 用于在导出 XML 时保持格式标记的一致性
     private var hasNewFormatPrefix = false
 
-    /// 格式变化发布者
-    private let formatChangeSubject = PassthroughSubject<TextFormat, Never>()
+    /// 格式应用处理器（由 Coordinator 注入，直接调用格式应用逻辑）
+    var formatApplyHandler: ((TextFormat) -> Void)?
 
     /// 特殊元素插入发布者
     private let specialElementSubject = PassthroughSubject<SpecialElement, Never>()
@@ -188,11 +188,6 @@ public class NativeEditorContext: ObservableObject {
 
     // MARK: - Public Publishers
 
-    /// 格式变化发布者
-    var formatChangePublisher: AnyPublisher<TextFormat, Never> {
-        formatChangeSubject.eraseToAnyPublisher()
-    }
-
     /// 特殊元素插入发布者
     var specialElementPublisher: AnyPublisher<SpecialElement, Never> {
         specialElementSubject.eraseToAnyPublisher()
@@ -259,23 +254,20 @@ public class NativeEditorContext: ObservableObject {
     ///   - format: 要应用的格式
     ///   - method: 应用方式
     func applyFormat(_ format: TextFormat, method: FormatApplicationMethod) {
-        // 记录应用方式
         currentApplicationMethod = method
 
-        // 发布格式变化
-        formatChangeSubject.send(format)
+        // 通过 formatApplyHandler 直接调用 Coordinator
+        if let handler = formatApplyHandler {
+            handler(format)
+        }
 
         // 由 CursorFormatManager 处理格式切换和状态同步
         cursorFormatManager?.handleToolbarFormatToggle(format)
 
-        // 标记有未保存的更改
         hasUnsavedChanges = true
-
-        // 使用版本号机制追踪格式变化
         changeTracker.formatDidChange()
         autoSaveManager.scheduleAutoSave()
 
-        // 重置应用方式
         currentApplicationMethod = .programmatic
     }
 
