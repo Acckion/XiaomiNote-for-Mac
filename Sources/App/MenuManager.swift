@@ -80,14 +80,6 @@ class MenuManager {
         updateMenuState(newState)
     }
 
-    /// 更新段落样式
-    /// - Parameter style: 当前段落样式
-    func updateParagraphStyle(_ style: ParagraphStyle) {
-        var newState = menuState
-        newState.setParagraphStyle(style)
-        updateMenuState(newState)
-    }
-
     /// 更新视图模式
     /// - Parameter mode: 当前视图模式
     func updateViewMode(_ mode: MenuViewMode) {
@@ -113,18 +105,6 @@ class MenuManager {
 
         // 更新引用块菜单项
         updateQuoteMenuItem(state.isQuote)
-
-        // 同步更新 MenuState
-        var newMenuState = menuState
-        newMenuState.currentParagraphStyle = convertToParagraphStyle(state.paragraphFormat)
-        newMenuState.isBold = state.isBold
-        newMenuState.isItalic = state.isItalic
-        newMenuState.isUnderline = state.isUnderline
-        newMenuState.isStrikethrough = state.isStrikethrough
-        newMenuState.isHighlight = state.isHighlight
-        newMenuState.isBlockQuoteEnabled = state.isQuote
-        newMenuState.textAlignment = convertToNSTextAlignment(state.alignment)
-        menuState = newMenuState
     }
 
     /// 更新段落格式菜单项
@@ -230,59 +210,7 @@ class MenuManager {
     ///   - menu: 菜单
     /// - Returns: 菜单项
     private func findMenuItem(for format: ParagraphFormat, in menu: NSMenu) -> NSMenuItem? {
-        let tag: MenuItemTag = switch format {
-        case .heading1:
-            .heading
-        case .heading2:
-            .subheading
-        case .heading3:
-            .subtitle
-        case .body:
-            .bodyText
-        case .bulletList:
-            .unorderedList
-        case .numberedList:
-            .orderedList
-        case .checkbox:
-            .checklist
-        }
-        return menu.item(withTag: tag.rawValue)
-    }
-
-    /// 将 ParagraphFormat 转换为 ParagraphStyle
-    /// - Parameter format: 段落格式
-    /// - Returns: 段落样式
-    private func convertToParagraphStyle(_ format: ParagraphFormat) -> ParagraphStyle {
-        switch format {
-        case .heading1:
-            .heading
-        case .heading2:
-            .subheading
-        case .heading3:
-            .subtitle
-        case .body:
-            .body
-        case .bulletList:
-            .unorderedList
-        case .numberedList:
-            .orderedList
-        case .checkbox:
-            .body // 复选框在 MenuState 中没有对应项，使用正文
-        }
-    }
-
-    /// 将 AlignmentFormat 转换为 NSTextAlignment
-    /// - Parameter alignment: 对齐格式
-    /// - Returns: NSTextAlignment
-    private func convertToNSTextAlignment(_ alignment: AlignmentFormat) -> NSTextAlignment {
-        switch alignment {
-        case .left:
-            .left
-        case .center:
-            .center
-        case .right:
-            .right
-        }
+        menu.item(withTag: format.menuItemTag.rawValue)
     }
 
     // MARK: - 注册表驱动构建

@@ -5,7 +5,7 @@ import AppKit
 /// - 维护 MenuState（菜单项启用/禁用/勾选状态）
 /// - 实现 validateMenuItem 逻辑
 /// - 监听 NotificationCenter 通知更新状态
-/// - 从上下文（编辑器、窗口）读取当前状态
+/// - 从 FormatStateManager 读取格式状态用于菜单勾选判断
 @MainActor
 class MenuStateManager: NSObject, NSMenuItemValidation {
 
@@ -14,15 +14,27 @@ class MenuStateManager: NSObject, NSMenuItemValidation {
     /// 主窗口控制器的弱引用
     private weak var mainWindowController: MainWindowController?
 
+    /// 格式状态管理器的弱引用
+    private weak var formatStateManager: FormatStateManager?
+
+    /// 当前格式状态缓存
+    private var currentFormatState = FormatState()
+
     /// 菜单状态
     private(set) var menuState = MenuState()
 
     // MARK: - 初始化
 
     /// 初始化菜单状态管理器
-    /// - Parameter mainWindowController: 主窗口控制器
-    init(mainWindowController: MainWindowController?) {
+    /// - Parameters:
+    ///   - mainWindowController: 主窗口控制器
+    ///   - formatStateManager: 格式状态管理器
+    init(
+        mainWindowController: MainWindowController?,
+        formatStateManager: FormatStateManager?
+    ) {
         self.mainWindowController = mainWindowController
+        self.formatStateManager = formatStateManager
         super.init()
         setupStateObservers()
     }
@@ -86,8 +98,8 @@ class MenuStateManager: NSObject, NSMenuItemValidation {
 
         NotificationCenter.default.addObserver(
             self,
-            selector: #selector(handleParagraphStyleChanged(_:)),
-            name: .paragraphStyleDidChange,
+            selector: #selector(handleFormatStateChanged(_:)),
+            name: .formatStateDidChange,
             object: nil
         )
 
@@ -148,14 +160,10 @@ class MenuStateManager: NSObject, NSMenuItemValidation {
         }
     }
 
-    /// 处理段落样式变化
-    @objc private func handleParagraphStyleChanged(_ notification: Notification) {
-        if let paragraphStyleRaw = notification.userInfo?["paragraphStyle"] as? String,
-           let paragraphStyle = ParagraphStyle(rawValue: paragraphStyleRaw)
-        {
-            var newState = menuState
-            newState.setParagraphStyle(paragraphStyle)
-            menuState = newState
+    /// 处理格式状态变化
+    @objc private func handleFormatStateChanged(_ notification: Notification) {
+        if let state = notification.userInfo?["state"] as? FormatState {
+            currentFormatState = state
         }
     }
 
@@ -180,7 +188,8 @@ class MenuStateManager: NSObject, NSMenuItemValidation {
     // MARK: - 上下文状态更新
 
     /// 从当前上下文更新菜单状态
-    /// 从编辑器上下文获取当前的格式状态，并更新菜单状态
+    /// 从编辑器上下文获取当前的非格式状态，并更新菜单状态
+    /// 格式状态由 FormatStateManager 通过通知更新
     private func updateMenuStateFromContext() {
         var newState = menuState
 
@@ -223,26 +232,60 @@ class MenuStateManager: NSObject, NSMenuItemValidation {
         // 更新笔记数量显示状态
         newState.isNoteCountVisible = ViewOptionsManager.shared.showNoteCount
 
-        // 更新段落样式状态
-        if let nativeEditorContext = mainWindowController?.getCurrentNativeEditorContext() {
-            nativeEditorContext.forceUpdateFormats()
-            let paragraphStyleString = nativeEditorContext.getCurrentParagraphStyleString()
-            if let paragraphStyle = ParagraphStyle(rawValue: paragraphStyleString) {
-                newState.setParagraphStyle(paragraphStyle)
-            }
+        // 从 FormatStateManager 读取最新格式状态作为兜底
+        if let latestState = formatStateManager?.currentState {
+            currentFormatState = latestState
         }
 
         menuState = newState
     }
 
     /// 更新菜单项的勾选状态
+    /// 非格式项由 MenuState 判断，格式项由 currentFormatState 判断
     /// - Parameters:
     ///   - menuItem: 菜单项
     ///   - tag: 菜单项标签
     private func updateMenuItemCheckState(_ menuItem: NSMenuItem, for tag: MenuItemTag) {
-        let shouldCheck = menuState.shouldCheckMenuItem(for: tag)
+        let shouldCheck: Bool = if let formatCheck = checkFormatState(for: tag) {
+            formatCheck
+        } else {
+            menuState.shouldCheckMenuItem(for: tag)
+        }
         menuItem.state = shouldCheck ? .on : .off
         updateMenuItemDynamicTitle(menuItem, for: tag)
+    }
+
+    /// 检查格式相关的菜单项勾选状态
+    /// 从 currentFormatState 读取段落格式、字符格式和对齐状态
+    /// - Parameter tag: 菜单项标签
+    /// - Returns: 勾选状态，非格式项返回 nil
+    private func checkFormatState(for tag: MenuItemTag) -> Bool? {
+        // 段落格式
+        if let paragraphFormat = ParagraphFormat.from(tag: tag) {
+            return currentFormatState.paragraphFormat == paragraphFormat
+        }
+
+        // 引用块
+        if tag == .blockQuote {
+            return currentFormatState.isQuote
+        }
+
+        // 字符格式
+        switch tag {
+        case .bold: return currentFormatState.isBold
+        case .italic: return currentFormatState.isItalic
+        case .underline: return currentFormatState.isUnderline
+        case .strikethrough: return currentFormatState.isStrikethrough
+        case .highlight: return currentFormatState.isHighlight
+        default: break
+        }
+
+        // 对齐格式
+        if let alignmentFormat = AlignmentFormat.from(tag: tag) {
+            return currentFormatState.alignment == alignmentFormat
+        }
+
+        return nil
     }
 
     /// 更新菜单项的动态标题
