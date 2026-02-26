@@ -84,6 +84,7 @@
 		39E3229C00E98B4CD7E4CC8D /* ImageStorageManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8DC0C048A28D0AE39C83AD01 /* ImageStorageManager.swift */; };
 		3B47F028AF6A8656BB86E6EB /* ExpandedNoteView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F6245570575A061F0D614EA0 /* ExpandedNoteView.swift */; };
 		3D6DB70531B88CD5DFC2914E /* MainWindowController+Search.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE85A751A74F6346F7DA85A1 /* MainWindowController+Search.swift */; };
+		3E0C562934F090A0D56A864E /* DefaultNetworkMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8C5B20D082E85D179381F504 /* DefaultNetworkMonitor.swift */; };
 		3E29E9B22504D889C2E5DBC9 /* CursorFormatManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC25FA5E67E5028573A039E3 /* CursorFormatManager.swift */; };
 		3E42B56B8DAC44531C57CB08 /* MiNoteError.swift in Sources */ = {isa = PBXBuildFile; fileRef = 05B3251A48BCDCD589C03984 /* MiNoteError.swift */; };
 		3F211C1F73CABEB0619135FC /* NoteOperationHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = EBC2862C480DD3FB5B6AAE3D /* NoteOperationHandler.swift */; };
@@ -250,7 +251,6 @@
 		C74E4E04306116516B4BE7B4 /* AppLaunchAssembler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 09398B9FA853177ED021A787 /* AppLaunchAssembler.swift */; };
 		C76ED53F4CAD1696AAE795F8 /* NotesListViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 61BC9A5B291CE23CA31D4A63 /* NotesListViewController.swift */; };
 		C7CDA31646341EA432574879 /* PrivateNotesPasswordInputDialogView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F8B1412A8410E9855A799B11 /* PrivateNotesPasswordInputDialogView.swift */; };
-		C82655762CA3C29308CC6CEC /* DefaultNetworkMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 592AE5EB0C26EA9D0717CA89 /* DefaultNetworkMonitor.swift */; };
 		C8E55C4F4EE1FBDFD1AE7D79 /* LoginWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 958BC4BD6BBCA2940ECE93E2 /* LoginWindowController.swift */; };
 		C929C570DDE11BDD5242C6F5 /* EditorSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 384F757E4010B9261E6574F9 /* EditorSettingsView.swift */; };
 		CA9E9BFEC4B05650A323FEC2 /* CustomSearchField.swift in Sources */ = {isa = PBXBuildFile; fileRef = 556702212ADAF5D108879BA1 /* CustomSearchField.swift */; };
@@ -417,7 +417,6 @@
 		567F2559E8A66A9787C8C6B6 /* MenuManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuManager.swift; sourceTree = "<group>"; };
 		57B18CC7ECAD97A45CB3DE04 /* SyncModule.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncModule.swift; sourceTree = "<group>"; };
 		582EBDBEC177545AB1A720FB /* ParagraphType.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ParagraphType.swift; sourceTree = "<group>"; };
-		592AE5EB0C26EA9D0717CA89 /* DefaultNetworkMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DefaultNetworkMonitor.swift; sourceTree = "<group>"; };
 		59DB79A8DC2F5356D05E3395 /* AssemblerSmokeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AssemblerSmokeTests.swift; sourceTree = "<group>"; };
 		5A4629110F48D5CECBB29944 /* MoveNoteMenuView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MoveNoteMenuView.swift; sourceTree = "<group>"; };
 		5AE223183ECDC532E68BE390 /* PerformanceCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PerformanceCache.swift; sourceTree = "<group>"; };
@@ -485,6 +484,7 @@
 		8529C845B84CD5543E4F1911 /* NoteEvent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteEvent.swift; sourceTree = "<group>"; };
 		86233D26380C0DB7286FE03E /* NoteCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteCardView.swift; sourceTree = "<group>"; };
 		8888C0F1B62BFB9A1D8D06F5 /* XMLRoundtripDebugView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = XMLRoundtripDebugView.swift; sourceTree = "<group>"; };
+		8C5B20D082E85D179381F504 /* DefaultNetworkMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DefaultNetworkMonitor.swift; sourceTree = "<group>"; };
 		8D5B6C51B0CAA5E9F8D854C3 /* QuoteBlockRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuoteBlockRenderer.swift; sourceTree = "<group>"; };
 		8D7AE5F796BAE511255387EE /* NetworkLogView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkLogView.swift; sourceTree = "<group>"; };
 		8DAF0853441A067E3DCBE0BC /* UtilityCommands.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UtilityCommands.swift; sourceTree = "<group>"; };
@@ -871,6 +871,7 @@
 				26760D63802EB7DB6537F438 /* Coordinator */,
 				A0DD281D3476BB6A6A1A2CD3 /* Core */,
 				0B0592ECC5B6E8B5D4430C58 /* Features */,
+				C58D207185CC500E1A523A76 /* Legacy */,
 				3CC44600E033D9A86A917AF2 /* Network */,
 				48327A78209AC2FF694E41F9 /* Shared */,
 				ACD0ED03D7DD2EBCDDB9ECAB /* Window */,
@@ -913,7 +914,6 @@
 				DE18F9E277BB73782CF8E511 /* NetworkRequestManager.swift */,
 				C0E1DFBD0D1C0389FF259238 /* ResponseParser.swift */,
 				DE2C00A1EC37C0B5962E09CA /* API */,
-				A4261D2F6C9AA3DB48BCDE93 /* Implementation */,
 			);
 			path = Network;
 			sourceTree = "<group>";
@@ -1259,14 +1259,6 @@
 			path = Audio;
 			sourceTree = "<group>";
 		};
-		A4261D2F6C9AA3DB48BCDE93 /* Implementation */ = {
-			isa = PBXGroup;
-			children = (
-				592AE5EB0C26EA9D0717CA89 /* DefaultNetworkMonitor.swift */,
-			);
-			path = Implementation;
-			sourceTree = "<group>";
-		};
 		A6B923E1B2ED4C0B87091EBF /* Kernel */ = {
 			isa = PBXGroup;
 			children = (
@@ -1447,6 +1439,14 @@
 				D416AA8927F87D66F39F15C3 /* TitleTextField.swift */,
 			);
 			path = Core;
+			sourceTree = "<group>";
+		};
+		C58D207185CC500E1A523A76 /* Legacy */ = {
+			isa = PBXGroup;
+			children = (
+				8C5B20D082E85D179381F504 /* DefaultNetworkMonitor.swift */,
+			);
+			path = Legacy;
 			sourceTree = "<group>";
 		};
 		C83645D79AF67C1CF4C7DFCC /* UI */ = {
@@ -1642,62 +1642,6 @@
 			path = Infrastructure;
 			sourceTree = "<group>";
 		};
-		"TEMP_62F7E84B-1C62-456A-BF06-5A6230587435" /* Presentation */ = {
-			isa = PBXGroup;
-			children = (
-			);
-			path = Presentation;
-			sourceTree = "<group>";
-		};
-		"TEMP_93714476-AF23-4D44-8B56-AA7F9C42BE74" /* View */ = {
-			isa = PBXGroup;
-			children = (
-			);
-			path = View;
-			sourceTree = "<group>";
-		};
-		"TEMP_98FEC877-FF2F-4B9D-8C5A-F31FE5F29024" /* Service */ = {
-			isa = PBXGroup;
-			children = (
-			);
-			path = Service;
-			sourceTree = "<group>";
-		};
-		"TEMP_CED81EEC-5185-412A-85E3-19ED77DB8518" /* SwiftUIViews */ = {
-			isa = PBXGroup;
-			children = (
-			);
-			path = SwiftUIViews;
-			sourceTree = "<group>";
-		};
-		"TEMP_D72C527A-4D85-4BA0-9067-2C78265247FB" /* Audio */ = {
-			isa = PBXGroup;
-			children = (
-			);
-			path = Audio;
-			sourceTree = "<group>";
-		};
-		"TEMP_E26E7934-C1A7-47A6-8867-5382BFC44141" /* Store */ = {
-			isa = PBXGroup;
-			children = (
-			);
-			path = Store;
-			sourceTree = "<group>";
-		};
-		"TEMP_F395D6DF-3DFE-42BD-93AA-D0292DDBD884" /* ViewModels */ = {
-			isa = PBXGroup;
-			children = (
-			);
-			path = ViewModels;
-			sourceTree = "<group>";
-		};
-		"TEMP_FF9EEBE0-0140-4B10-A79C-DC6226F52A10" /* Cache */ = {
-			isa = PBXGroup;
-			children = (
-			);
-			path = Cache;
-			sourceTree = "<group>";
-		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -1848,7 +1792,7 @@
 				13C94FA68BD0452FA7212771 /* DebugWindowController.swift in Sources */,
 				014E00AF2F2EE56886540E19 /* DefaultAudioService.swift in Sources */,
 				59A646B850DE9A1C05BD2D35 /* DefaultCacheService.swift in Sources */,
-				C82655762CA3C29308CC6CEC /* DefaultNetworkMonitor.swift in Sources */,
+				3E0C562934F090A0D56A864E /* DefaultNetworkMonitor.swift in Sources */,
 				4EF80E02DFB26F209ED9A985 /* DefaultNoteStorage.swift in Sources */,
 				34EE9A2D3426B53E36CF6257 /* DeletedNote.swift in Sources */,
 				6F2723031BDC47B16155226B /* EditorAssembler.swift in Sources */,
