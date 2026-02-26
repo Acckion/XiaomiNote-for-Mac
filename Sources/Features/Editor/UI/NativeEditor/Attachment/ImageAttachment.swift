@@ -5,7 +5,7 @@ import SwiftUI
 
 /// 图片附件 - 用于在 NSTextView 中显示图片
 /// 支持 minote:// URL 方案加载本地图片
-final class ImageAttachment: NSTextAttachment, ThemeAwareAttachment {
+final class ImageAttachment: NSTextAttachment, ThemeAwareAttachment, FileAttachmentProtocol {
 
     // MARK: - Properties
 
@@ -158,6 +158,26 @@ final class ImageAttachment: NSTextAttachment, ThemeAwareAttachment {
         if isDarkMode != newIsDarkMode {
             isDarkMode = newIsDarkMode
         }
+    }
+
+    // MARK: - FileAttachmentProtocol
+
+    /// 从 isLoading/loadFailed 推导加载状态
+    var loadingState: FileAttachmentLoadingState {
+        if isLoading {
+            .loading
+        } else if loadFailed {
+            .error("图片加载失败")
+        } else if image != nil {
+            .loaded
+        } else {
+            .idle
+        }
+    }
+
+    /// 开始加载图片
+    func startLoading() {
+        reload()
     }
 
     // MARK: - Image Loading

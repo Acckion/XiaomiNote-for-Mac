@@ -103,9 +103,6 @@ struct MenuState: Equatable {
 
     // MARK: - 切换状态
 
-    /// 是否启用浅色背景
-    var isLightBackgroundEnabled = false
-
     /// 是否隐藏文件夹
     var isFolderHidden = false
 
@@ -232,10 +229,8 @@ struct MenuState: Equatable {
     /// 检查其他状态勾选
     private func checkOtherState(for tag: MenuItemTag) -> Bool {
         switch tag {
-        case .lightBackground: isLightBackgroundEnabled
         case .hideFolders: false
         case .showNoteCount: false
-        case .markAsChecked: isCurrentItemChecked
         default: false
         }
     }
@@ -270,11 +265,6 @@ struct MenuState: Equatable {
     /// - Parameter selected: 是否有选中文本
     mutating func setTextSelected(_ selected: Bool) {
         hasSelectedText = selected
-    }
-
-    /// 切换浅色背景
-    mutating func toggleLightBackground() {
-        isLightBackgroundEnabled.toggle()
     }
 
     /// 切换文件夹可见性

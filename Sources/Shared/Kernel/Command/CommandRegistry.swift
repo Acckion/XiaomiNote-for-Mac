@@ -11,13 +11,12 @@
         /// 文件菜单
         case fileNew, fileShare, fileImport, fileExport, fileNoteActions
         // 格式菜单
-        case formatParagraph, formatChecklist, formatChecklistMore
-        case formatMoveItem, formatAppearance
+        case formatParagraph, formatChecklist
         case formatFont, formatAlignment, formatIndent
         /// 编辑菜单
         case editAttachment
         /// 显示菜单
-        case viewMode, viewFolderOptions, viewZoom, viewSections
+        case viewMode, viewFolderOptions, viewZoom
         /// 窗口菜单
         case windowLayout, windowTile, windowNote
         /// 杂项
@@ -266,93 +265,6 @@
                 symbolName: "checklist",
                 group: .formatChecklist
             ))
-            register(MenuCommandEntry(
-                tag: .markAsChecked,
-                title: "标记为已勾选",
-                commandType: MarkAsCheckedCommand.self,
-                keyEquivalent: "",
-                modifiers: [],
-                symbolName: "checkmark.circle",
-                group: .formatChecklist
-            ))
-
-            // formatChecklistMore 分组
-            register(MenuCommandEntry(
-                tag: .checkAll,
-                title: "全部勾选",
-                commandType: CheckAllCommand.self,
-                keyEquivalent: "",
-                modifiers: [],
-                symbolName: "checkmark.circle.fill",
-                group: .formatChecklistMore
-            ))
-            register(MenuCommandEntry(
-                tag: .uncheckAll,
-                title: "全部取消勾选",
-                commandType: UncheckAllCommand.self,
-                keyEquivalent: "",
-                modifiers: [],
-                symbolName: "circle",
-                group: .formatChecklistMore
-            ))
-            register(MenuCommandEntry(
-                tag: .moveCheckedToBottom,
-                title: "将勾选的项目移到底部",
-                commandType: MoveCheckedToBottomCommand.self,
-                keyEquivalent: "",
-                modifiers: [],
-                symbolName: "arrow.down.to.line",
-                group: .formatChecklistMore
-            ))
-            register(MenuCommandEntry(
-                tag: .deleteCheckedItems,
-                title: "删除已勾选项目",
-                commandType: DeleteCheckedItemsCommand.self,
-                keyEquivalent: "",
-                modifiers: [],
-                symbolName: "trash",
-                group: .formatChecklistMore
-            ))
-
-            // formatMoveItem 分组
-            register(MenuCommandEntry(
-                tag: .moveItemUp,
-                title: "向上",
-                commandType: MoveItemUpCommand.self,
-                keyEquivalent: String(UnicodeScalar(NSUpArrowFunctionKey)!),
-                modifiers: [.control, .command],
-                symbolName: "arrow.up",
-                group: .formatMoveItem
-            ))
-            register(MenuCommandEntry(
-                tag: .moveItemDown,
-                title: "向下",
-                commandType: MoveItemDownCommand.self,
-                keyEquivalent: String(UnicodeScalar(NSDownArrowFunctionKey)!),
-                modifiers: [.control, .command],
-                symbolName: "arrow.down",
-                group: .formatMoveItem
-            ))
-
-            // formatAppearance 分组
-            register(MenuCommandEntry(
-                tag: .lightBackground,
-                title: "使用浅色背景显示笔记",
-                commandType: ToggleLightBackgroundCommand.self,
-                keyEquivalent: "",
-                modifiers: [],
-                symbolName: "sun.max",
-                group: .formatAppearance
-            ))
-            register(MenuCommandEntry(
-                tag: .highlight,
-                title: "高亮",
-                commandType: ToggleHighlightCommand.self,
-                keyEquivalent: "",
-                modifiers: [],
-                symbolName: "highlighter",
-                group: .formatAppearance
-            ))
 
             // formatFont 分组
             register(MenuCommandEntry(
@@ -389,6 +301,15 @@
                 keyEquivalent: "",
                 modifiers: [],
                 symbolName: "strikethrough",
+                group: .formatFont
+            ))
+            register(MenuCommandEntry(
+                tag: .highlight,
+                title: "高亮",
+                commandType: ToggleHighlightCommand.self,
+                keyEquivalent: "",
+                modifiers: [],
+                symbolName: "highlighter",
                 group: .formatFont
             ))
             register(MenuCommandEntry(
@@ -552,43 +473,6 @@
                 group: .viewZoom
             ))
 
-            // viewSections 分组
-            register(MenuCommandEntry(
-                tag: .expandSection,
-                title: "展开区域",
-                commandType: ExpandSectionCommand.self,
-                keyEquivalent: "",
-                modifiers: [],
-                symbolName: "chevron.down",
-                group: .viewSections
-            ))
-            register(MenuCommandEntry(
-                tag: .expandAllSections,
-                title: "展开所有区域",
-                commandType: ExpandAllSectionsCommand.self,
-                keyEquivalent: "",
-                modifiers: [],
-                symbolName: "chevron.down.2",
-                group: .viewSections
-            ))
-            register(MenuCommandEntry(
-                tag: .collapseSection,
-                title: "折叠区域",
-                commandType: CollapseSectionCommand.self,
-                keyEquivalent: "",
-                modifiers: [],
-                symbolName: "chevron.up",
-                group: .viewSections
-            ))
-            register(MenuCommandEntry(
-                tag: .collapseAllSections,
-                title: "折叠所有区域",
-                commandType: CollapseAllSectionsCommand.self,
-                keyEquivalent: "",
-                modifiers: [],
-                symbolName: "chevron.up.2",
-                group: .viewSections
-            ))
         }
 
         private func registerWindowMenuCommands() {

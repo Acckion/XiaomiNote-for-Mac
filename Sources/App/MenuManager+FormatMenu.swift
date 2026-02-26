@@ -13,7 +13,6 @@ extension MenuManager {
 
         setupParagraphStyleItems(in: formatMenu)
         setupChecklistItems(in: formatMenu)
-        setupAppearanceItems(in: formatMenu)
         setupFontAndTextItems(in: formatMenu)
     }
 
@@ -36,33 +35,6 @@ extension MenuManager {
 
     private func setupChecklistItems(in formatMenu: NSMenu) {
         formatMenu.addItem(buildMenuItem(for: .checklist))
-        formatMenu.addItem(buildMenuItem(for: .markAsChecked))
-
-        let moreMenuItem = NSMenuItem(
-            title: "更多",
-            action: nil,
-            keyEquivalent: ""
-        )
-        moreMenuItem.submenu = createChecklistMoreSubmenu()
-        setMenuItemIcon(moreMenuItem, symbolName: "ellipsis.circle")
-        formatMenu.addItem(moreMenuItem)
-
-        formatMenu.addItem(NSMenuItem.separator())
-
-        let moveItemMenuItem = NSMenuItem(
-            title: "移动项目",
-            action: nil,
-            keyEquivalent: ""
-        )
-        moveItemMenuItem.submenu = createMoveItemSubmenu()
-        setMenuItemIcon(moveItemMenuItem, symbolName: "arrow.up.arrow.down")
-        formatMenu.addItem(moveItemMenuItem)
-
-        formatMenu.addItem(NSMenuItem.separator())
-    }
-
-    private func setupAppearanceItems(in formatMenu: NSMenu) {
-        formatMenu.addItem(buildMenuItem(for: .lightBackground))
 
         formatMenu.addItem(NSMenuItem.separator())
     }
@@ -97,22 +69,6 @@ extension MenuManager {
     }
 
     // MARK: - 子菜单创建
-
-    func createChecklistMoreSubmenu() -> NSMenu {
-        let moreMenu = NSMenu(title: "更多")
-        moreMenu.addItem(buildMenuItem(for: .checkAll))
-        moreMenu.addItem(buildMenuItem(for: .uncheckAll))
-        moreMenu.addItem(buildMenuItem(for: .moveCheckedToBottom))
-        moreMenu.addItem(buildMenuItem(for: .deleteCheckedItems))
-        return moreMenu
-    }
-
-    func createMoveItemSubmenu() -> NSMenu {
-        let moveMenu = NSMenu(title: "移动项目")
-        moveMenu.addItem(buildMenuItem(for: .moveItemUp))
-        moveMenu.addItem(buildMenuItem(for: .moveItemDown))
-        return moveMenu
-    }
 
     func createFontSubmenu() -> NSMenu {
         let fontMenu = NSMenu(title: "字体")
