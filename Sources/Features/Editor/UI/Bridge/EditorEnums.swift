@@ -79,6 +79,47 @@ public enum TextFormat: CaseIterable, Hashable, Sendable {
     var isInlineFormat: Bool {
         !isBlockFormat
     }
+
+    /// 是否是标题格式
+    var isHeadingFormat: Bool {
+        switch self {
+        case .heading1, .heading2, .heading3: true
+        default: false
+        }
+    }
+
+    /// 是否是列表格式
+    var isListFormat: Bool {
+        switch self {
+        case .bulletList, .numberedList, .checkbox: true
+        default: false
+        }
+    }
+}
+
+// MARK: - Set<TextFormat> 扩展
+
+public extension Set<TextFormat> {
+
+    /// 获取集合中的所有块级格式
+    var blockFormats: Set<TextFormat> {
+        filter(\.isBlockFormat)
+    }
+
+    /// 检查是否包含任何块级格式
+    var hasBlockFormats: Bool {
+        contains { $0.isBlockFormat }
+    }
+
+    /// 获取集合中的标题格式
+    var headingFormat: TextFormat? {
+        first { $0.isHeadingFormat }
+    }
+
+    /// 获取集合中的列表格式
+    var listFormat: TextFormat? {
+        first { $0.isListFormat }
+    }
 }
 
 /// 特殊元素类型枚举

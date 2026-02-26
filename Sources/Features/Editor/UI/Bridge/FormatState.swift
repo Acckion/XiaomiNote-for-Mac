@@ -117,6 +117,7 @@ public enum AlignmentFormat: String, CaseIterable, Equatable, Hashable, Sendable
         default: nil
         }
     }
+
 }
 
 // MARK: - 格式状态结构体
@@ -344,6 +345,24 @@ extension FormatState: CustomStringConvertible {
         }
 
         return "FormatState(\(parts.joined(separator: ", ")))"
+    }
+}
+
+// MARK: - ParagraphFormat 与 ParagraphType 转换
+
+public extension ParagraphFormat {
+
+    /// 转换为 ParagraphType
+    var paragraphType: ParagraphType {
+        switch self {
+        case .heading1: .heading(level: 1)
+        case .heading2: .heading(level: 2)
+        case .heading3: .heading(level: 3)
+        case .bulletList: .list(.bullet)
+        case .numberedList: .list(.ordered)
+        case .checkbox: .list(.checkbox)
+        case .body: .normal
+        }
     }
 }
 

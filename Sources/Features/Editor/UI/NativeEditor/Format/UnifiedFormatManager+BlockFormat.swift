@@ -25,7 +25,7 @@ public extension UnifiedFormatManager {
             return
         }
 
-        guard BlockFormatHandler.isBlockFormat(format) else {
+        guard format.isBlockFormat else {
             return
         }
 

@@ -639,28 +639,3 @@ public struct BlockFormatHandler {
         textStorage.endEditing()
     }
 }
-
-// MARK: - 块级格式集合扩展
-
-public extension Set<TextFormat> {
-
-    /// 获取集合中的所有块级格式
-    var blockFormats: Set<TextFormat> {
-        filter { BlockFormatHandler.isBlockFormat($0) }
-    }
-
-    /// 检查是否包含任何块级格式
-    var hasBlockFormats: Bool {
-        contains { BlockFormatHandler.isBlockFormat($0) }
-    }
-
-    /// 获取集合中的标题格式
-    var headingFormat: TextFormat? {
-        first { BlockFormatHandler.isHeadingFormat($0) }
-    }
-
-    /// 获取集合中的列表格式
-    var listFormat: TextFormat? {
-        first { BlockFormatHandler.isListFormat($0) }
-    }
-}
