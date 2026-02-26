@@ -20,8 +20,8 @@ Sources/
 │   ├── Composition/        # 组合根 + 模块工厂（AppCoordinatorAssembler, NotesAssembler, SyncAssembler, AuthAssembler, EditorAssembler, AudioAssembler, EditorModule, AudioModule）
 │   ├── Runtime/            # 运行时管理（AppStateManager, StartupSequenceManager, ErrorRecoveryService）
 │   ├── App.swift           # SwiftUI 入口
+│   ├── AppCoordinator.swift # 应用协调器（管理 State 对象、协调方法、窗口代理）
 │   └── Menu*/              # 菜单相关（MenuManager, MenuStateManager, MenuState, MenuItemTag）
-├── Coordinator/            # 协调器（AppCoordinator）
 ├── Features/               # 按域组织的功能模块（7 个业务域）
 │   ├── Notes/              # 笔记域（Vertical Slice）
 │   │   ├── Domain/         # 领域模型（Note, NoteMapper, DeletedNote, NoteSortOrder, NoteImageAttachment, NoteHistoryVersion, PendingUploadEntry, TitleExtractionResult）
@@ -63,7 +63,7 @@ Sources/
 │       ├── Infrastructure/ # AudioCacheService, AudioConverterService, AudioUploadService, AudioPlayerService, AudioRecorderService, AudioDecryptService, DefaultAudioService
 │       ├── Application/    # AudioPanelStateManager, AudioPanelViewModel
 │       └── UI/             # AudioPanelView, AudioPlayerView, AudioRecorderUploadView, AudioRecorderView
-├── Network/                # 网络层（APIClient, NetworkModule, NetworkRequestManager, FileAPI 等）
+├── Network/                # 网络层（APIClient, NetworkModule, NetworkRequestManager, DefaultNetworkMonitor, FileAPI 等）
 ├── Shared/                 # 跨域共享（三层结构）
 │   ├── Contracts/          # 跨域协议（AudioServiceProtocol, CacheServiceProtocol, NetworkMonitorProtocol, NoteStorageProtocol）
 │   ├── Kernel/             # 核心基础设施
@@ -79,8 +79,6 @@ Sources/
 ├── Window/                 # 窗口控制器
 │   ├── Controllers/        # MainWindowController（1 核心 + 6 extension）、SettingsWindowController、DebugWindowController 等
 │   └── State/              # WindowState, WindowStateManager, MainWindowState 等
-├── Legacy/                 # 历史遗留代码过渡目录（DefaultNetworkMonitor.swift）
-
 Tests/                      # 测试代码
 References/                 # 参考项目（不参与编译）
 ```

@@ -136,7 +136,8 @@ Sources/
 │   ├── Folders/
 │   ├── Search/
 │   └── Audio/
-└── Legacy/                  # 过渡期兼容代码，带退出时间
+├── Network/                 # 网络层（独立模块）
+└── Window/                  # 窗口控制器（跨域 AppKit 控制器）
 ```
 
 ### 5.2 迁移状态
@@ -146,14 +147,16 @@ Sources/
 - Shared 三层结构已建立：Contracts、Kernel、UICommons
 - App 三层结构已建立：Bootstrap、Composition、Runtime
 - 旧技术层目录（State、View、Presentation、Service、Extensions、ToolbarItem、Store）已清理
-- Legacy 目录仅保留 DefaultNetworkMonitor.swift
+- Coordinator/ 已清理：AppCoordinator.swift 迁入 Sources/App/
+- Legacy/ 已清理：DefaultNetworkMonitor.swift 迁入 Sources/Network/，Legacy 目录已删除
+- Sources/ 顶层仅保留 5 个目录：App、Features、Network、Shared、Window
 
 ### 5.3 迁移约束（持续生效）
 
-1. `Legacy/` 是临时缓冲区，所有迁入文件必须带"删除截止版本"。
-2. 新增功能禁止落入旧技术层目录。
-3. 目录迁移必须同步更新 `project.yml`（XcodeGen），每次迁移后执行 `xcodegen generate` 验证。
-4. 迁移以业务域为单位，每个域一个 spec，避免一次性大规模移动。
+1. 新增功能禁止落入旧技术层目录。
+2. 目录迁移必须同步更新 `project.yml`（XcodeGen），每次迁移后执行 `xcodegen generate` 验证。
+3. 迁移以业务域为单位，每个域一个 spec，避免一次性大规模移动。
+4. Sources/ 顶层仅允许 5 个目录：App、Features、Network、Shared、Window。
 
 ---
 
