@@ -271,7 +271,6 @@
 		CA9E9BFEC4B05650A323FEC2 /* CustomSearchField.swift in Sources */ = {isa = PBXBuildFile; fileRef = 556702212ADAF5D108879BA1 /* CustomSearchField.swift */; };
 		CC30DF561F02C4CC7A7D4E31 /* NotesListHostingController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 76427333A876E289B95BDD92 /* NotesListHostingController.swift */; };
 		CC34CA87605EFC9372143C55 /* NoteImageAttachment.swift in Sources */ = {isa = PBXBuildFile; fileRef = 73DA5F9539F17BA1EE3B29DC /* NoteImageAttachment.swift */; };
-		CC8D1D29F4043D32F4C2A44D /* NoteEditorToolbar.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5FB964505F0C450D3D69407 /* NoteEditorToolbar.swift */; };
 		CD65E4DB314E2682B37D8A9D /* FormatStateManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7880268B710612A3D6DF0DB8 /* FormatStateManager.swift */; };
 		CD72C53FDDF46AC3F7F9AD96 /* NoteCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 86233D26380C0DB7286FE03E /* NoteCardView.swift */; };
 		CE83912EFED99FEB66FC91F5 /* NoteListState.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB6220F821444DDF9BC26BF5 /* NoteListState.swift */; };
@@ -649,7 +648,6 @@
 		F4DCD7E4C27D87941D5A8E2F /* NoteCommands.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteCommands.swift; sourceTree = "<group>"; };
 		F56144C05605082222765AA9 /* AudioCacheService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioCacheService.swift; sourceTree = "<group>"; };
 		F5931EEDE0E99A9A5B672D25 /* .gitkeep */ = {isa = PBXFileReference; path = .gitkeep; sourceTree = "<group>"; };
-		F5FB964505F0C450D3D69407 /* NoteEditorToolbar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteEditorToolbar.swift; sourceTree = "<group>"; };
 		F6245570575A061F0D614EA0 /* ExpandedNoteView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExpandedNoteView.swift; sourceTree = "<group>"; };
 		F658FD89041C999840827BBD /* XMLGenerator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = XMLGenerator.swift; sourceTree = "<group>"; };
 		F73EB052C82A1C3F9E49402D /* DebugSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebugSettingsView.swift; sourceTree = "<group>"; };
@@ -1101,7 +1099,6 @@
 				28C567B9392BED11476C0511 /* NoteDetailHostingController.swift */,
 				21055B23CF76FC58407823CE /* NoteDetailView.swift */,
 				C122E97D5D87310906798109 /* NoteDetailViewController.swift */,
-				F5FB964505F0C450D3D69407 /* NoteEditorToolbar.swift */,
 				DCD24999EA2C08B526836A9A /* NoteHistoryView.swift */,
 				991FD0949661FC56C5840781 /* NoteMoveHelper.swift */,
 				7C4FF27CB3405837BF0CFF73 /* NotePreviewImageView.swift */,
@@ -1921,7 +1918,6 @@
 				8CE8F6375D9D425319BC59D9 /* NoteDetailWindowState.swift in Sources */,
 				CFEC6AF2DDAA7F8C76C73077 /* NoteEditingCoordinator.swift in Sources */,
 				114A29562CE6D6BECADC3151 /* NoteEditorState.swift in Sources */,
-				CC8D1D29F4043D32F4C2A44D /* NoteEditorToolbar.swift in Sources */,
 				91A227B5E2EB241F1EB57081 /* NoteEditorWindowController.swift in Sources */,
 				63E89C277C2EFF9B1362CD5A /* NoteEvent.swift in Sources */,
 				0F521AE60BAF9C77082D45EF /* NoteHistoryVersion.swift in Sources */,

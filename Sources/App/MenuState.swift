@@ -1,57 +1,5 @@
 import AppKit
 
-/// 段落样式枚举
-/// 用于表示当前段落的样式类型
-enum ParagraphStyle: String, CaseIterable {
-    case heading
-    case subheading
-    case subtitle
-    case body
-    case orderedList
-    case unorderedList
-    case blockQuote
-
-    /// 获取对应的菜单项标签
-    var menuItemTag: MenuItemTag {
-        switch self {
-        case .heading: .heading
-        case .subheading: .subheading
-        case .subtitle: .subtitle
-        case .body: .bodyText
-        case .orderedList: .orderedList
-        case .unorderedList: .unorderedList
-        case .blockQuote: .blockQuote
-        }
-    }
-
-    /// 从菜单项标签创建段落样式
-    static func from(tag: MenuItemTag) -> ParagraphStyle? {
-        switch tag {
-        case .heading: .heading
-        case .subheading: .subheading
-        case .subtitle: .subtitle
-        case .bodyText: .body
-        case .orderedList: .orderedList
-        case .unorderedList: .unorderedList
-        case .blockQuote: .blockQuote
-        default: nil
-        }
-    }
-
-    /// 显示名称
-    var displayName: String {
-        switch self {
-        case .heading: "大标题"
-        case .subheading: "二级标题"
-        case .subtitle: "三级标题"
-        case .body: "正文"
-        case .orderedList: "有序列表"
-        case .unorderedList: "无序列表"
-        case .blockQuote: "块引用"
-        }
-    }
-}
-
 /// 菜单视图模式枚举
 /// 用于表示笔记列表的显示模式（菜单状态专用）
 enum MenuViewMode: String, CaseIterable {
@@ -88,14 +36,6 @@ enum MenuViewMode: String, CaseIterable {
 /// 用于管理菜单项的状态（启用/禁用、勾选/未勾选）
 struct MenuState: Equatable {
 
-    // MARK: - 段落样式状态
-
-    /// 当前段落样式
-    var currentParagraphStyle: ParagraphStyle = .body
-
-    /// 是否启用块引用
-    var isBlockQuoteEnabled = false
-
     // MARK: - 视图模式状态
 
     /// 当前视图模式
@@ -119,28 +59,6 @@ struct MenuState: Equatable {
 
     /// 编辑器是否有焦点
     var isEditorFocused = false
-
-    // MARK: - 字体样式状态
-
-    /// 是否为粗体
-    var isBold = false
-
-    /// 是否为斜体
-    var isItalic = false
-
-    /// 是否有下划线
-    var isUnderline = false
-
-    /// 是否有删除线
-    var isStrikethrough = false
-
-    /// 是否高亮
-    var isHighlight = false
-
-    // MARK: - 文本对齐状态
-
-    /// 当前文本对齐方式
-    var textAlignment: NSTextAlignment = .left
 
     // MARK: - 核对清单状态
 
@@ -171,28 +89,13 @@ struct MenuState: Equatable {
     }
 
     /// 检查菜单项是否应该显示勾选状态
+    /// 仅处理非格式相关的勾选（视图模式等）
+    /// 格式相关的勾选由 MenuStateManager 通过 FormatStateManager 处理
     /// - Parameter tag: 菜单项标签
     /// - Returns: 是否勾选
     func shouldCheckMenuItem(for tag: MenuItemTag) -> Bool {
-        if let result = checkParagraphStyle(for: tag) { return result }
         if let result = checkViewMode(for: tag) { return result }
-        if let result = checkFontStyle(for: tag) { return result }
-        if let result = checkAlignment(for: tag) { return result }
         return checkOtherState(for: tag)
-    }
-
-    /// 检查段落样式勾选状态
-    private func checkParagraphStyle(for tag: MenuItemTag) -> Bool? {
-        switch tag {
-        case .heading: currentParagraphStyle == .heading
-        case .subheading: currentParagraphStyle == .subheading
-        case .subtitle: currentParagraphStyle == .subtitle
-        case .bodyText: currentParagraphStyle == .body
-        case .orderedList: currentParagraphStyle == .orderedList
-        case .unorderedList: currentParagraphStyle == .unorderedList
-        case .blockQuote: currentParagraphStyle == .blockQuote
-        default: nil
-        }
     }
 
     /// 检查视图模式勾选状态
@@ -200,28 +103,6 @@ struct MenuState: Equatable {
         switch tag {
         case .listView: currentViewMode == .list
         case .galleryView: currentViewMode == .gallery
-        default: nil
-        }
-    }
-
-    /// 检查字体样式勾选状态
-    private func checkFontStyle(for tag: MenuItemTag) -> Bool? {
-        switch tag {
-        case .bold: isBold
-        case .italic: isItalic
-        case .underline: isUnderline
-        case .strikethrough: isStrikethrough
-        case .highlight: isHighlight
-        default: nil
-        }
-    }
-
-    /// 检查文本对齐勾选状态
-    private func checkAlignment(for tag: MenuItemTag) -> Bool? {
-        switch tag {
-        case .alignLeft: textAlignment == .left
-        case .alignCenter: textAlignment == .center
-        case .alignRight: textAlignment == .right
         default: nil
         }
     }
@@ -236,12 +117,6 @@ struct MenuState: Equatable {
     }
 
     // MARK: - 状态更新方法
-
-    /// 设置段落样式
-    /// - Parameter style: 新的段落样式
-    mutating func setParagraphStyle(_ style: ParagraphStyle) {
-        currentParagraphStyle = style
-    }
 
     /// 设置视图模式
     /// - Parameter mode: 新的视图模式

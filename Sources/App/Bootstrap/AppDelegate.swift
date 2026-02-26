@@ -58,7 +58,10 @@ public class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation 
 
         // 初始化命令调度器和菜单状态管理器
         commandDispatcher = coordinator.commandDispatcher
-        menuStateManager = MenuStateManager(mainWindowController: windowManager.mainWindowController)
+        menuStateManager = MenuStateManager(
+            mainWindowController: windowManager.mainWindowController,
+            formatStateManager: coordinator.formatStateManager
+        )
 
         Task { @MainActor in
             await coordinator.start()

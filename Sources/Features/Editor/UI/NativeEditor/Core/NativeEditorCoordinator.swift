@@ -302,8 +302,8 @@ extension NativeEditorView {
             // 更新选择范围
             parent.editorContext.updateSelectedRange(selectedRange)
 
-            // 异步更新格式状态，避免在视图更新中触发其他视图更新
-            parent.editorContext.updateCurrentFormatsAsync()
+            // 刷新格式状态，避免在视图更新中触发其他视图更新
+            parent.editorContext.cursorFormatManager?.forceRefresh()
         }
 
         // MARK: - 音频附件删除检测

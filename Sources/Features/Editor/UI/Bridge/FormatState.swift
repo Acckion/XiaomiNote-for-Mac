@@ -346,3 +346,59 @@ extension FormatState: CustomStringConvertible {
         return "FormatState(\(parts.joined(separator: ", ")))"
     }
 }
+
+// MARK: - ParagraphFormat 与 MenuItemTag 映射
+
+extension ParagraphFormat {
+
+    /// 对应的菜单项标签
+    var menuItemTag: MenuItemTag {
+        switch self {
+        case .heading1: .heading
+        case .heading2: .subheading
+        case .heading3: .subtitle
+        case .body: .bodyText
+        case .bulletList: .unorderedList
+        case .numberedList: .orderedList
+        case .checkbox: .checklist
+        }
+    }
+
+    /// 从菜单项标签创建段落格式
+    static func from(tag: MenuItemTag) -> ParagraphFormat? {
+        switch tag {
+        case .heading: .heading1
+        case .subheading: .heading2
+        case .subtitle: .heading3
+        case .bodyText: .body
+        case .unorderedList: .bulletList
+        case .orderedList: .numberedList
+        case .checklist: .checkbox
+        default: nil
+        }
+    }
+}
+
+// MARK: - AlignmentFormat 与 MenuItemTag 映射
+
+extension AlignmentFormat {
+
+    /// 对应的菜单项标签
+    var menuItemTag: MenuItemTag {
+        switch self {
+        case .left: .alignLeft
+        case .center: .alignCenter
+        case .right: .alignRight
+        }
+    }
+
+    /// 从菜单项标签创建对齐格式
+    static func from(tag: MenuItemTag) -> AlignmentFormat? {
+        switch tag {
+        case .alignLeft: .left
+        case .alignCenter: .center
+        case .alignRight: .right
+        default: nil
+        }
+    }
+}

@@ -164,21 +164,10 @@
 
         // MARK: - 新增工具栏按钮动作方法
 
-        /// 切换待办（插入复选框）
+        /// 切换待办（复选框列表）
         @objc internal func toggleCheckbox(_: Any?) {
-            LogService.shared.debug(.window, "切换待办")
-
-            guard coordinator.noteListState.selectedNote != nil else {
-                LogService.shared.debug(.window, "没有选中笔记，无法插入待办")
-                return
-            }
-
-            LogService.shared.debug(.window, "使用原生编辑器，调用 NativeEditorContext.insertCheckbox()")
-            if let nativeContext = getCurrentNativeEditorContext() {
-                nativeContext.insertCheckbox()
-            } else {
-                LogService.shared.error(.window, "无法获取 NativeEditorContext")
-            }
+            guard coordinator.noteListState.selectedNote != nil else { return }
+            coordinator.editorModule.formatStateManager.toggleFormat(.checkbox)
         }
 
         /// 插入分割线
