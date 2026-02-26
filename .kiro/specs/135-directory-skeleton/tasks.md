@@ -16,18 +16,18 @@
 
 ## 任务 2：建立 App 三层目录并迁移文件
 
-- [-] 2. App 三层目录迁移
+- [x] 2. App 三层目录迁移
   - [x] 2.1 创建 `Sources/App/Bootstrap/`，迁入 AppDelegate.swift、AppLaunchAssembler.swift
   - [x] 2.2 创建 `Sources/App/Runtime/`，迁入 AppStateManager.swift
   - [x] 2.3 创建 `Sources/App/Composition/`，迁入 AppCoordinatorAssembler.swift 及各域 Assembler（从 Sources/Coordinator/）
-  - [-] 2.4 执行 `xcodegen generate` + 编译验证
+  - [x] 2.4 执行 `xcodegen generate` + 编译验证
 
 ## 任务 3：建立 Shared 两层目录 + Legacy 目录
 
-- [ ] 3. Shared 和 Legacy 目录建立
-  - [ ] 3.1 创建 `Sources/Shared/Kernel/README.md`，标注计划迁入 EventBus、LogService
-  - [ ] 3.2 创建 `Sources/Shared/UICommons/README.md`，标注计划迁入共享 UI 组件
-  - [ ] 3.3 创建 `Sources/Legacy/README.md`，包含过渡规范说明
+- [-] 3. Shared 和 Legacy 目录建立
+  - [x] 3.1 创建 `Sources/Shared/Kernel/README.md`，标注计划迁入 EventBus、LogService
+  - [x] 3.2 创建 `Sources/Shared/UICommons/README.md`，标注计划迁入共享 UI 组件
+  - [x] 3.3 创建 `Sources/Legacy/README.md`，包含过渡规范说明
   - [ ] 3.4 执行 `xcodegen generate` + 编译验证
 
 ## 任务 4：更新文档
