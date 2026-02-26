@@ -268,24 +268,10 @@ public class NativeEditorContext: ObservableObject {
         // 记录应用方式
         currentApplicationMethod = method
 
-        // 使用批量更新机制，减少视图重绘次数
-        batchUpdateState {
-            // 切换格式状态
-            if currentFormats.contains(format) {
-                currentFormats.remove(format)
-                toolbarButtonStates[format] = false
-            } else {
-                // 处理互斥格式（内联版本，避免嵌套批量更新）
-                handleMutuallyExclusiveFormatsInline(for: format)
-                currentFormats.insert(format)
-                toolbarButtonStates[format] = true
-            }
-        }
-
         // 发布格式变化
         formatChangeSubject.send(format)
 
-        // 使用 CursorFormatManager 处理工具栏格式切换
+        // 由 CursorFormatManager 处理格式切换和状态同步
         cursorFormatManager?.handleToolbarFormatToggle(format)
 
         // 标记有未保存的更改
@@ -314,40 +300,18 @@ public class NativeEditorContext: ObservableObject {
 
     /// 清除所有格式
     func clearAllFormats() {
-        // 使用批量更新机制，减少视图重绘次数
-        batchUpdateState {
-            currentFormats.removeAll()
-            for format in TextFormat.allCases {
-                toolbarButtonStates[format] = false
-            }
-        }
-
         // 使用版本号机制追踪格式变化
         changeTracker.formatDidChange()
         autoSaveManager.scheduleAutoSave()
+
+        // 由 CursorFormatManager 刷新格式状态并同步到所有消费者
+        cursorFormatManager?.forceRefresh()
     }
 
     /// 清除标题格式（将文本恢复为正文样式）
     func clearHeadingFormat() {
-
-        // 使用批量更新机制，减少视图重绘次数
-        batchUpdateState {
-            // 移除所有标题格式
-            currentFormats.remove(.heading1)
-            currentFormats.remove(.heading2)
-            currentFormats.remove(.heading3)
-            toolbarButtonStates[.heading1] = false
-            toolbarButtonStates[.heading2] = false
-            toolbarButtonStates[.heading3] = false
-        }
-
         // 重置字体大小为正文大小（13pt）
         resetFontSizeToBody()
-
-        // 注意：不要调用 formatChangeSubject.send(.heading1)！
-        // 因为这会触发 NativeEditorView.Coordinator 中的 applyFormat(.heading1)
-        // 导致大标题格式被错误地应用
-        // _修复: heading2/heading3 转正文时错误应用大标题格式_
 
         // 标记有未保存的更改
         hasUnsavedChanges = true
@@ -356,9 +320,8 @@ public class NativeEditorContext: ObservableObject {
         changeTracker.formatDidChange()
         autoSaveManager.scheduleAutoSave()
 
-        // 强制更新格式状态，确保 UI 同步
-        updateCurrentFormats()
-
+        // 由 CursorFormatManager 刷新格式状态并同步到所有消费者
+        cursorFormatManager?.forceRefresh()
     }
 
     /// 重置字体大小为正文大小
@@ -406,21 +369,6 @@ public class NativeEditorContext: ObservableObject {
 
     /// 清除对齐格式（恢复默认左对齐）
     func clearAlignmentFormat() {
-
-        // 使用批量更新机制，减少视图重绘次数
-        batchUpdateState {
-            // 移除居中和居右格式
-            currentFormats.remove(.alignCenter)
-            currentFormats.remove(.alignRight)
-            toolbarButtonStates[.alignCenter] = false
-            toolbarButtonStates[.alignRight] = false
-        }
-
-        // 注意：不要调用 formatChangeSubject.send(.alignCenter)！
-        // 因为这会触发 NativeEditorView.Coordinator 中的 applyFormat(.alignCenter)
-        // 导致居中对齐格式被错误地应用
-        // _修复: 与 clearHeadingFormat 保持一致_
-
         // 标记有未保存的更改
         hasUnsavedChanges = true
 
@@ -428,8 +376,8 @@ public class NativeEditorContext: ObservableObject {
         changeTracker.formatDidChange()
         autoSaveManager.scheduleAutoSave()
 
-        // 强制更新格式状态，确保 UI 同步
-        updateCurrentFormats()
+        // 由 CursorFormatManager 刷新格式状态并同步到所有消费者
+        cursorFormatManager?.forceRefresh()
     }
 
     /// 插入特殊元素
@@ -707,10 +655,14 @@ public class NativeEditorContext: ObservableObject {
 
     /// 立即更新格式状态（不使用防抖）
     ///
-    /// 在某些情况下（如用户点击格式按钮），我们需要立即更新状态
-    /// 菜单栏格式菜单也需要调用此方法来获取当前格式状态
+    /// 优先使用 CursorFormatManager 刷新格式状态，
+    /// 如果不可用则 fallback 到 formatStateSynchronizer
     public func forceUpdateFormats() {
-        formatStateSynchronizer.performImmediateUpdate()
+        if let cursorFormatManager {
+            cursorFormatManager.forceRefresh()
+        } else {
+            formatStateSynchronizer.performImmediateUpdate()
+        }
     }
 
     /// 请求从外部源同步内容
@@ -780,50 +732,6 @@ public class NativeEditorContext: ObservableObject {
     /// 不需要手动调用 objectWillChange.send()，否则会在视图渲染周期内产生额外发布
     func batchUpdateState(updates: () -> Void) {
         updates()
-    }
-
-    /// 处理互斥格式（内联版本，不使用批量更新）
-    ///
-    /// 此方法用于在已经处于批量更新上下文中时调用，避免嵌套批量更新
-    ///
-    /// - Parameter format: 要应用的格式
-    private func handleMutuallyExclusiveFormatsInline(for format: TextFormat) {
-        // 标题格式互斥
-        if format == .heading1 || format == .heading2 || format == .heading3 {
-            currentFormats.remove(.heading1)
-            currentFormats.remove(.heading2)
-            currentFormats.remove(.heading3)
-            toolbarButtonStates[.heading1] = false
-            toolbarButtonStates[.heading2] = false
-            toolbarButtonStates[.heading3] = false
-        }
-
-        // 对齐格式互斥
-        if format == .alignCenter || format == .alignRight {
-            currentFormats.remove(.alignCenter)
-            currentFormats.remove(.alignRight)
-            toolbarButtonStates[.alignCenter] = false
-            toolbarButtonStates[.alignRight] = false
-        }
-
-        // 列表格式互斥
-        if format == .bulletList || format == .numberedList || format == .checkbox {
-            currentFormats.remove(.bulletList)
-            currentFormats.remove(.numberedList)
-            currentFormats.remove(.checkbox)
-            toolbarButtonStates[.bulletList] = false
-            toolbarButtonStates[.numberedList] = false
-            toolbarButtonStates[.checkbox] = false
-        }
-    }
-
-    /// 处理互斥格式
-    /// - Parameter format: 要应用的格式
-    private func handleMutuallyExclusiveFormats(for format: TextFormat) {
-        // 使用批量更新机制，减少视图重绘次数
-        batchUpdateState {
-            handleMutuallyExclusiveFormatsInline(for: format)
-        }
     }
 
     /// 放大
