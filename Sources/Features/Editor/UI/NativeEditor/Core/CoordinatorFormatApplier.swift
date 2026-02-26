@@ -72,15 +72,12 @@ extension NativeEditorView.Coordinator {
 
         // 4. 应用格式
         do {
-            // 检查是否为段落级格式
-            if format.category == .blockTitle || format.category == .blockList || format.category == .blockQuote {
-                // 使用 ParagraphManager 应用段落格式
-
-                // 将 TextFormat 转换为 ParagraphType
+            // 列表格式使用 applyFormatSafely，其中包含 ListFormatHandler 的 toggle 逻辑
+            // 标题和引用格式使用 ParagraphManager
+            if format.category == .blockTitle || format.category == .blockQuote {
                 let paragraphType = convertTextFormatToParagraphType(format)
                 formatParagraphManager.applyParagraphFormat(paragraphType, to: effectiveRange, in: textStorage)
             } else {
-                // 内联格式：使用原有逻辑
                 try applyFormatSafely(format, to: effectiveRange, in: textStorage)
             }
 
@@ -140,15 +137,17 @@ extension NativeEditorView.Coordinator {
             textStorage.endEditing()
         }
 
-        // 特殊处理：列表格式使用 ListFormatHandler
-        if format == .bulletList || format == .numberedList {
-
-            if format == .bulletList {
-                // 使用 ListFormatHandler 切换无序列表
+        // 列表格式使用 ListFormatHandler 的 toggle 方法
+        if format == .bulletList || format == .numberedList || format == .checkbox {
+            switch format {
+            case .bulletList:
                 ListFormatHandler.toggleBulletList(to: textStorage, range: range)
-            } else {
-                // 使用 ListFormatHandler 切换有序列表
+            case .numberedList:
                 ListFormatHandler.toggleOrderedList(to: textStorage, range: range)
+            case .checkbox:
+                ListFormatHandler.toggleCheckboxList(to: textStorage, range: range)
+            default:
+                break
             }
 
             return
