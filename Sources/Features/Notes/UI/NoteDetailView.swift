@@ -34,7 +34,6 @@ struct NoteDetailView: View {
     @State private var showImageInsertFailedAlert = false
     @State private var imageInsertErrorMessage = ""
     @State private var showingHistoryView = false
-    @State private var showTrashView = false
 
     // MARK: - 初始化
 
@@ -76,9 +75,6 @@ struct NoteDetailView: View {
                 handleNativeEditorSaveStatusChange(notification)
             }
             .navigationTitle("详情")
-            .toolbar {
-                toolbarContent
-            }
     }
 
     // MARK: - 事件处理
@@ -128,21 +124,6 @@ struct NoteDetailView: View {
         } else {
             emptyNoteView
         }
-    }
-
-    @ToolbarContentBuilder
-    private var toolbarContent: some ToolbarContent {
-        NoteEditorToolbar(
-            noteListState: noteListState,
-            noteEditorState: noteEditorState,
-            nativeEditorContext: noteEditorState.nativeEditorContext,
-            isDebugMode: isDebugMode,
-            selectedNote: windowState.selectedNote,
-            onToggleDebugMode: { toggleDebugMode() },
-            onInsertImage: { insertImage() },
-            showingHistoryView: $showingHistoryView,
-            showTrashView: $showTrashView
-        )
     }
 
     private func noteEditorView(for note: Note) -> some View {
@@ -366,23 +347,5 @@ struct NoteDetailView: View {
                 Label("新建笔记", systemImage: "plus")
             }.buttonStyle(.borderedProminent)
         }.frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-}
-
-// MARK: - 格式菜单弹出内容视图
-
-@available(macOS 14.0, *)
-struct FormatMenuPopoverContent: View {
-    @ObservedObject var nativeEditorContext: NativeEditorContext
-    let onDismiss: () -> Void
-
-    var body: some View {
-        NativeFormatMenuView(context: nativeEditorContext) { _ in onDismiss() }
-            .onAppear {
-                nativeEditorContext.requestContentSync()
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
-                    nativeEditorContext.forceUpdateFormats()
-                }
-            }
     }
 }
