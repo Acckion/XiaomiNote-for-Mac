@@ -50,18 +50,21 @@ report_violation() {
 # 参考: ADR-001
 # ============================================================
 check_domain_imports() {
-    local target_dir="Sources/Model"
-    if [ ! -d "$target_dir" ]; then
-        return
-    fi
+    local -a target_dirs=("Sources/Model" "Sources/Features/Notes/Domain" "Sources/Features/Editor/Domain" "Sources/Features/Sync/Domain" "Sources/Features/Auth/Domain" "Sources/Features/Folders/Domain" "Sources/Features/Search/Domain" "Sources/Features/Audio/Domain")
 
-    while IFS=: read -r file line content; do
-        # 跳过 arch-ignore 豁免
-        if echo "$content" | grep -q "// arch-ignore"; then
+    for target_dir in "${target_dirs[@]}"; do
+        if [ ! -d "$target_dir" ]; then
             continue
         fi
-        report_violation "RULE-001" "error" "$file" "$line" "Domain 层禁止 import AppKit/SwiftUI"
-    done < <(grep -rn "import AppKit\|import SwiftUI" "$target_dir" 2>/dev/null || true)
+
+        while IFS=: read -r file line content; do
+            # 跳过 arch-ignore 豁免
+            if echo "$content" | grep -q "// arch-ignore"; then
+                continue
+            fi
+            report_violation "RULE-001" "error" "$file" "$line" "Domain 层禁止 import AppKit/SwiftUI"
+        done < <(grep -rn "import AppKit\|import SwiftUI" "$target_dir" 2>/dev/null || true)
+    done
 }
 
 # ============================================================
@@ -72,15 +75,15 @@ check_domain_imports() {
 
 # 允许保留 .shared 的文件列表
 ALLOWED_SHARED=(
-    "Sources/Service/Core/LogService.swift"
-    "Sources/Store/DatabaseService.swift"
-    "Sources/Core/EventBus/EventBus.swift"
-    "Sources/Service/Audio/AudioPlayerService.swift"
-    "Sources/Service/Audio/AudioRecorderService.swift"
-    "Sources/Service/Audio/AudioDecryptService.swift"
+    "Sources/Shared/Kernel/LogService.swift"
+    "Sources/Shared/Kernel/Store/DatabaseService.swift"
+    "Sources/Shared/Kernel/EventBus/EventBus.swift"
+    "Sources/Features/Audio/Infrastructure/AudioPlayerService.swift"
+    "Sources/Features/Audio/Infrastructure/AudioRecorderService.swift"
+    "Sources/Features/Audio/Infrastructure/AudioDecryptService.swift"
     "Sources/Features/Auth/Infrastructure/PrivateNotesPasswordManager.swift"
-    "Sources/State/ViewOptionsManager.swift"
-    "Sources/Service/Core/PerformanceService.swift"
+    "Sources/Shared/Kernel/ViewOptionsManager.swift"
+    "Sources/Shared/Kernel/PerformanceService.swift"
 )
 
 check_shared_singletons() {

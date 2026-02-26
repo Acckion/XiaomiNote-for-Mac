@@ -30,15 +30,14 @@ SwiftUI 视图层 (View)
 
 ### 规则
 
-1. Domain 层（Model/）禁止 import AppKit、SwiftUI
+1. Domain 层（`Sources/Model/` 与 `Sources/Features/*/Domain/`）禁止 import AppKit、SwiftUI
 2. UI 层（View/）禁止直接 import Store、Network 具体实现类
 3. 依赖方向为单向：上层可以依赖下层，下层不可依赖上层
 4. 跨层通信通过 EventBus 或协议抽象实现
 
 ### 当前阶段适用范围
 
-- Domain 层对应 `Sources/Model/` 目录
-- 未来 Vertical Slice 迁移后，Domain 层对应 `Features/*/Domain/`
+- Domain 层对应 `Sources/Model/` 与 `Sources/Features/*/Domain/`
 
 ### 豁免机制
 
@@ -56,4 +55,4 @@ SwiftUI 视图层 (View)
 ## 相关 Spec
 
 - spec-125: 架构治理与约束自动化
-- spec-126: Notes 纵向切片（未来扩展检查范围）
+- spec-136: Editor/Search/Audio 纵向切片（规则已覆盖全部 Domain 目录）

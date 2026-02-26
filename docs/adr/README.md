@@ -13,7 +13,7 @@ ADR（Architecture Decision Record）用于记录和追踪关键架构决策及�
 | [ADR-001](ADR-001-dependency-direction.md) | 依赖方向规则 | 已采纳 | spec-125 |
 | [ADR-002](ADR-002-event-governance.md) | 事件治理规则 | 已采纳 | spec-125 |
 | [ADR-003](ADR-003-network-backbone.md) | 网络主干规则 | 已采纳 | spec-114, spec-125 |
-| [ADR-004](ADR-004-shared-singleton-policy.md) | .shared 使用规则 | 已采纳 | spec-118, spec-125 |
+| [ADR-004](ADR-004-shared-singleton-policy.md) | .shared 使用规则 | 已采纳 | spec-118, spec-125, spec-129 |
 
 ## ADR 模板
 

@@ -1,71 +1,29 @@
-# 未来工作
+# 顶层重构收尾清单
 
-> 路线图设计文档：`docs/plans/2026-02-26-architecture-improvement-roadmap-design.md`
-> 审计基线：2026-02-26
+> 更新日期：2026-02-26
+> 关联文档：`docs/architecture-next.md`
 
-## 当前重构后仍存在的缺陷
+## 当前状态
 
-- 缺陷 1：架构门禁 RULE-001 只扫描 `Sources/Model`，漏检 `Features/*/Domain`。已确认 `Note.swift` 有 `import AppKit` 违规，CI 绿灯通过。→ spec-131
-- 缺陷 2：关键链路（Command 调度、导入写入、同步队列）缺少回归测试，仍以人工回归为主。→ spec-132
-- 缺陷 3：`AppCoordinatorAssembler` 仍是单体装配（约 150 行），未按域拆分。→ spec-133
-- 缺陷 4：目标目录结构 4 个差距未落地。→ spec-135 / spec-136
-  - 差距 A：`Sources/App/Bootstrap`、`Composition`、`Runtime` 未成型
-  - 差距 B：`Sources/Shared/Kernel`、`UICommons` 未建立
-  - 差距 C：`Features/Editor`、`Features/Search`、`Features/Audio` 未切片
-  - 差距 D：`Sources/Legacy` 过渡目录未启用
-- 缺陷 5：文档残留已过时的 MenuActionHandler 描述。→ spec-131 附带清理
+- 顶层架构重构主计划（spec124-spec136）已完成。
+- 目录结构、组合根拆分、菜单 Command 化、关键链路测试已落地。
 
-## 路线图（安全网优先）
+## 收尾项（非结构性重构）
 
-执行顺序：131 → 132 → 133 + 134（可并行）→ 135 → 136
+- [ ] 修复 Domain 规则违规：`Sources/Features/Notes/Domain/Note.swift` 移除 `import AppKit`。
+- [ ] 同步 `docs/architecture-next.md` 的最终验收状态描述（标注最新检查时间与结果）。
+- [ ] 清理历史计划文档中的“进行中”表述，统一改为“已完成（归档）”。
 
-```
-spec-131 (门禁修复)
-    │
-    ▼
-spec-132 (回归测试)
-    │
-    ├──────────────┐
-    ▼              ▼
-spec-133        spec-134
-(组合根拆分)    (同步队列优化)
-    │
-    ▼
-spec-135 (目录骨架)
-    │
-    ▼
-spec-136 (Editor/Search/Audio 切片)
-```
+## 已完成记录（摘要）
 
-### 阶段一：门禁修复（风险低，1-2 天）
-
-- [spec-131] 扩展 RULE-001 扫描范围：`Sources/Model` + `Sources/Features/*/Domain`
-- [spec-131] 修复 `Note.swift` 的 `import AppKit` 违规
-- [spec-131] 为架构脚本增加自检用例（RULE-001 正/反样本）
-- [spec-131] 清理文档中已过时的 MenuActionHandler 描述
-
-### 阶段二：关键链路回归测试（风险中，3-5 天）
-
-- [spec-132] Command 链路测试（CommandDispatcher -> execute 调用验证）
-- [spec-132] 导入流程测试（ImportMarkdownCommand / ImportNotesCommand 内容真实写入断言）
-- [spec-132] 同步队列测试（文件丢失失败、nextRetryAt 门控、二次入队）
-- [spec-132] 组合根冒烟测试（启动链依赖完整性、关键服务非空）
-
-### 阶段三：组合根拆分 + 目录骨架（风险中，1-2 周）
-
-- [spec-133] 拆分 AppCoordinatorAssembler 为 5 个域 Assembler（Notes/Sync/Auth/Editor/Audio）
-- [spec-133] 主装配器仅聚合各域产出 + 跨域接线
-- [spec-135] 建立 `Sources/App/Bootstrap`、`Composition`、`Runtime`，迁入首批文件
-- [spec-135] 建立 `Sources/Shared/Kernel`、`UICommons`（先建壳）
-- [spec-135] 建立 `Sources/Legacy` 过渡规范
-
-### 阶段四：剩余域切片 + 持续治理（风险中-高，2-4 周）
-
-- [spec-136] Search 域迁移（SearchState -> Features/Search/Application）
-- [spec-136] Editor 域迁移（Service/Editor -> Features/Editor）
-- [spec-136] Audio 域迁移（Service/Audio -> Features/Audio）
-- [spec-134] 同步队列可观测日志、重试参数统一、OperationFailurePolicy 提取
-
-## 已完成
-
-- ~~spec-130：导入流程修复~~（2026-02-26 完成）
+- [x] spec-124：菜单命令链 Command 化，`MenuActionHandler` 删除。
+- [x] spec-125：ADR + 架构检查脚本 + CI 集成。
+- [x] spec-126/127/128：Notes/Sync/Auth/Folders Vertical Slice。
+- [x] spec-129：第一级 `.shared` 退出（NetworkMonitor/NetworkErrorHandler/NetworkLogger/PreviewHelper）。
+- [x] spec-130：导入流程“真实写入”修复。
+- [x] spec-131：RULE-001 扫描覆盖 `Features/*/Domain`。
+- [x] spec-132：Command/导入/同步队列回归测试补齐。
+- [x] spec-133：组合根按域拆分（Notes/Sync/Auth/Editor/Audio Assembler）。
+- [x] spec-134：同步队列第二层治理（失败策略与可观测性增强）。
+- [x] spec-135：`App/Bootstrap|Composition|Runtime` 与 `Shared/Kernel|UICommons` 骨架落地。
+- [x] spec-136：Editor/Search/Audio 切片迁移完成。

@@ -30,19 +30,21 @@
 
 2. ~~Command 模式覆盖率不足~~ 已完成（spec124）：所有菜单业务逻辑已迁移到 Command 体系（FormatCommands、FileCommands、WindowCommands、ViewCommands、NoteCommands、SyncCommands、UtilityCommands）。
 
-3. 目录组织以技术层为主（Network/Store/State/View），功能改动跨目录跳转频繁。
+3. ~~目录组织以技术层为主（Network/Store/State/View），功能改动跨目录跳转频繁。~~ 已完成目录重组（spec136）：当前采用 App/Features/Network/Shared/Window 顶层结构。
 
-4. EventBus、NotificationCenter、直接调用混用，缺少明确边界规则文档。
+4. ~~EventBus、NotificationCenter、直接调用混用，缺少明确边界规则文档。~~ 已完成 ADR 治理（ADR-002）并接入脚本规则（RULE-003）。
 
-5. 缺少架构约束自动化，重构成果容易被新代码破坏。
+5. ~~缺少架构约束自动化，重构成果容易被新代码破坏。~~ 已完成：`check-architecture.sh --strict` 已接入 CI。
 
-6. ~~13 个基础设施类仍保留 `.shared` 单例，缺少分级退出策略~~ 已完成分级退出：4 个已删除（NetworkMonitor、NetworkErrorHandler、NetworkLogger、PreviewHelper），2 个评估后保留（PerformanceService、PrivateNotesPasswordManager），剩余 4 个待评估（3 个 Audio + ViewOptionsManager）。详见第 6.6 节。
+6. ~~13 个基础设施类仍保留 `.shared` 单例，缺少分级退出策略~~ 已完成分级退出：4 个已删除（NetworkMonitor、NetworkErrorHandler、NetworkLogger、PreviewHelper），其余保留项与评估项见第 6.6 节。
 
-7. 导入流程存在逻辑断层：创建空笔记但未真实写入内容。
+7. ~~导入流程存在逻辑断层：创建空笔记但未真实写入内容。~~ 已修复（spec130）。
 
 8. ~~菜单编辑命令（undo/redo/cut/copy/paste）为空实现。~~ 已通过标准 NSResponder 链实现（spec129 审计确认）。
 
-9. AppCoordinator 本身已较精简（约 200 行），但 AppCoordinatorAssembler 的手工接线代码（100+ 行）缺少按域拆分能力，随着功能增长会持续膨胀。
+9. ~~AppCoordinator 本身已较精简（约 200 行），但 AppCoordinatorAssembler 的手工接线代码（100+ 行）缺少按域拆分能力，随着功能增长会持续膨胀。~~ 已完成按域拆分（spec133）：Notes/Auth/Sync/Editor/Audio Assembler 已落地。
+
+10. Domain 层仍存在 1 处规则违规：`Sources/Features/Notes/Domain/Note.swift` 含 `import AppKit`（待收尾）。
 
 ---
 
@@ -136,15 +138,27 @@ Sources/
 │   ├── Folders/
 │   ├── Search/
 │   └── Audio/
-└── Legacy/                  # 过渡期兼容代码，带退出时间
+├── Network/                 # 网络层（独立模块）
+└── Window/                  # 窗口控制器（跨域 AppKit 控制器）
 ```
 
-### 5.2 迁移约束
+### 5.2 迁移状态
 
-1. `Legacy/` 是临时缓冲区，所有迁入文件必须带"删除截止版本"。
-2. 新增功能禁止落入旧技术层目录。
-3. 目录迁移必须同步更新 `project.yml`（XcodeGen），每次迁移后执行 `xcodegen generate` 验证。
-4. 迁移以业务域为单位，每个域一个 spec，避免一次性大规模移动。
+目录重组已在 spec-136 中全面完成（2026-02-26）。当前目录结构已与 5.1 目标一致：
+- 7 个业务域已全部就位：Notes、Editor、Sync、Auth、Folders、Search、Audio
+- Shared 三层结构已建立：Contracts、Kernel、UICommons
+- App 三层结构已建立：Bootstrap、Composition、Runtime
+- 旧技术层目录（State、View、Presentation、Service、Extensions、ToolbarItem、Store）已清理
+- Coordinator/ 已清理：AppCoordinator.swift 迁入 Sources/App/
+- Legacy/ 已清理：DefaultNetworkMonitor.swift 迁入 Sources/Network/，Legacy 目录已删除
+- Sources/ 顶层仅保留 5 个目录：App、Features、Network、Shared、Window
+
+### 5.3 迁移约束（持续生效）
+
+1. 新增功能禁止落入旧技术层目录。
+2. 目录迁移必须同步更新 `project.yml`（XcodeGen），每次迁移后执行 `xcodegen generate` 验证。
+3. 迁移以业务域为单位，每个域一个 spec，避免一次性大规模移动。
+4. Sources/ 顶层仅允许 5 个目录：App、Features、Network、Shared、Window。
 
 ---
 
@@ -209,19 +223,19 @@ EventBus 作为跨域业务事件总线保留。
 
 ### 6.6 .shared 单例分级退出策略
 
-将残留 .shared 单例分为三级（spec129 更新）：
+将残留 .shared 单例分为三级（spec129 + spec136 更新）：
 
 第一级（已退出）：
 - ~~NetworkMonitor~~ → 已迁入 NetworkModule 构造，.shared 已删除（spec129）
 - ~~NetworkErrorHandler~~ → 已迁入 NetworkModule 构造，.shared 已删除（spec129）
 - ~~NetworkLogger~~ → 已迁入 NetworkModule 构造，.shared 已删除（spec129）
 - ~~PreviewHelper~~ → 零调用方，.shared 已删除（spec129）
-- ViewOptionsManager → 待迁入 AppCoordinatorAssembler 构造
 
 第二级（需保留，架构基础设施）：
 - LogService → 全局日志，保留 .shared
 - DatabaseService → 全局数据库，保留 .shared
 - EventBus → 全局事件总线，保留 .shared
+- ViewOptionsManager → 全局视图选项状态，保留 .shared
 - PerformanceService → Sendable 无状态工具类，注入成本高于收益，保留 .shared（spec129 评估）
 - PrivateNotesPasswordManager → Sendable 无状态 Keychain 工具类，8 个调用方分布广泛，保留 .shared（spec129 评估）
 
@@ -410,3 +424,10 @@ EventBus 作为跨域业务事件总线保留。
 6. 关键业务链路具备稳定回归测试。
 7. 架构违规 PR 无法合并。
 
+---
+
+## 14. 最新验收快照（2026-02-26）
+
+- 完成项：第 13 节 1/2/3/5/6 已满足，目录重组与组合根拆分已落地。
+- 待收尾：第 13 节第 7 项仍有 1 个阻塞（`Sources/Features/Notes/Domain/Note.swift` 存在 `import AppKit` 违规）。
+- 维护入口：收尾任务以 `docs/plans/TODO` 为准。
